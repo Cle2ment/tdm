@@ -1,0 +1,27 @@
+[package]
+name = "tdm-runtime"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "TDM engine crate: provider registry, routing, exact-hash cache, retry + circuit breaker, audit log, and stats."
+
+[dependencies]
+dirs = "6"
+rusqlite = { version = "0.37", features = ["bundled"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, features = ["float_roundtrip"] }
+sha2 = "0.10"
+tdm-core = { path = "../tdm-core" }
+tdm-provider-jev = { path = "../tdm-provider-jev" }
+tdm-provider-mock = { path = "../tdm-provider-mock" }
+thiserror.workspace = true
+tokio = { version = "1", features = ["rt-multi-thread", "time"] }
+toml = "0.9"
+tracing.workspace = true
+
+[dev-dependencies]
+async-trait.workspace = true
+tempfile = "3"
+tokio = { version = "1", features = ["macros"] }
