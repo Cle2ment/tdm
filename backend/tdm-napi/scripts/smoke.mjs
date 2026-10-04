@@ -49,9 +49,10 @@ const request = {
 };
 
 const ids = request.questions.map((question) => question.id);
+const opts = { provider: "mock", session: { harness: "smoke", sessionId: "smoke-1" } };
 
 try {
-  const result = await runtime.judge(request, { provider: "mock" });
+  const result = await runtime.judge(request, opts);
 
   assert(Array.isArray(result.answers), "answers must be an array");
   assert(
@@ -104,6 +105,13 @@ try {
 
   assert(result.provider && result.provider.id === "mock", `provider.id must be "mock"`);
   console.log("PASS: provider.id === mock");
+
+  const repeat = await runtime.judge(request, opts);
+  assert(
+    JSON.stringify(repeat.answers) === JSON.stringify(result.answers),
+    "a second identical judge must return identical answers",
+  );
+  console.log("PASS: second identical judge returns identical answers (cache path exercised)");
 
   const health = await runtime.health();
   assert(health.ok === true, "mock provider health must be ok");
