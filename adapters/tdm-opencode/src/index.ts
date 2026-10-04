@@ -9,8 +9,8 @@
  */
 import type { Plugin } from "@opencode-ai/plugin";
 import { tool } from "@opencode-ai/plugin";
-import type { TdmClient } from "@typedecision/client/src/index";
-import { createClient } from "@typedecision/client/src/index";
+import type { TdmClient } from "@typedecision/client";
+import { createClient } from "@typedecision/client";
 
 import { judgeArgs } from "./args";
 import { createJudgeHandler } from "./handler";

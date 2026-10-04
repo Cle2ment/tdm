@@ -11,8 +11,15 @@
   "publishConfig": {
     "access": "public"
   },
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
   "dependencies": {
-    "@typedecision/contract": "workspace:*"
+    "@typedecision/contract": "workspace:*",
+    "@typedecision/runtime": "workspace:*"
   },
   "devDependencies": {
     "typescript": "latest",

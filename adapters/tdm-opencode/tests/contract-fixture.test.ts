@@ -1,5 +1,5 @@
 import { tool } from "@opencode-ai/plugin";
-import type { DecisionRequest, DecisionResult, TdmClient } from "@typedecision/client/src/index";
+import type { DecisionRequest, DecisionResult, TdmClient } from "@typedecision/client";
 import { describe, expect, it } from "vitest";
 
 import { judgeArgs } from "../src/args";

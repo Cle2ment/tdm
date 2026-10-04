@@ -171,6 +171,9 @@ importers:
       '@typedecision/contract':
         specifier: workspace:*
         version: link:../tdm-contract
+      '@typedecision/runtime':
+        specifier: workspace:*
+        version: link:../../backend/tdm-napi
     devDependencies:
       typescript:
         specifier: latest

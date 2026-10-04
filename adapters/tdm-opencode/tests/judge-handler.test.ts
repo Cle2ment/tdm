@@ -3,7 +3,7 @@ import type {
   DecisionResult,
   JudgeOptions,
   TdmClient,
-} from "@typedecision/client/src/index";
+} from "@typedecision/client";
 import { describe, expect, it } from "vitest";
 
 import { createJudgeHandler } from "../src/handler";

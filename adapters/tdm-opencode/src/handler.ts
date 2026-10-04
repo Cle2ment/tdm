@@ -1,4 +1,4 @@
-import type { DecisionRequest, TdmClient } from "@typedecision/client/src/index";
+import type { DecisionRequest, TdmClient } from "@typedecision/client";
 
 /**
  * Minimal slice of the opencode `ToolContext` the judge handler consumes. The

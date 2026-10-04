@@ -1,6 +1,6 @@
 import type { PluginInput, ToolContext } from "@opencode-ai/plugin";
 
-import type { DecisionRequest } from "@typedecision/client/src/index";
+import type { DecisionRequest } from "@typedecision/client";
 import { describe, expect, it } from "vitest";
 
 import plugin from "../src/index";
