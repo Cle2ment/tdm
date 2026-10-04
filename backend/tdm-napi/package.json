@@ -1,0 +1,36 @@
+{
+  "name": "@typedecision/runtime",
+  "version": "0.1.0",
+  "description": "Native (napi-rs) binding for the TDM decision runtime: judge/health in-process.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "github.com/Cle2ment/tdm",
+    "directory": "backend/tdm-napi"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "index.js",
+  "types": "index.d.ts",
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "*.node"
+  ],
+  "napi": {
+    "binaryName": "tdm-runtime"
+  },
+  "scripts": {
+    "build": "napi build --platform --no-js --dts target/index.d.ts --release",
+    "build:debug": "napi build --platform --no-js --dts target/index.d.ts",
+    "smoke": "node scripts/smoke.mjs",
+    "smoke:bun": "bun scripts/smoke.mjs"
+  },
+  "dependencies": {
+    "@typedecision/contract": "workspace:*"
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "^3.10.6"
+  }
+}

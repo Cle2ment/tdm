@@ -32,3 +32,24 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec biome ci .
       - run: pnpm -r --if-present test
+
+  napi:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @typedecision/runtime build:debug
+      - run: pnpm --filter @typedecision/runtime smoke
+      - if: matrix.os != 'macos-latest'
+        uses: oven-sh/setup-bun@v2
+      - if: matrix.os != 'macos-latest'
+        run: pnpm --filter @typedecision/runtime smoke:bun
