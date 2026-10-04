@@ -41,6 +41,12 @@ cargo test --workspace    # Rust tests; regenerates TS bindings + JSON Schemas
 pnpm exec biome check .   # Lint + format TS adapters
 ```
 
+## Community
+
+- [Contributing](CONTRIBUTING.md) — setup, verification gates, conventions
+- [Security](SECURITY.md) — reporting vulnerabilities; key/audit-data handling
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+
 ## License
 
 Licensed under [Apache-2.0](LICENSE).
