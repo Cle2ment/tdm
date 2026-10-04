@@ -8,8 +8,10 @@
   "files": {
     "includes": [
       "adapters/**",
+      "backend/tdm-napi/**",
       "!adapters/tdm-contract/src/generated",
-      "!adapters/tdm-contract/schema"
+      "!adapters/tdm-contract/schema",
+      "!backend/tdm-napi/target"
     ]
   },
   "formatter": {
