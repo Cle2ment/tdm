@@ -16,3 +16,10 @@ TS_RS_LARGE_INT = "number"
 # "undefined symbol: napi_*" (the symbols are never called in unit tests).
 [target.x86_64-unknown-linux-gnu]
 rustflags = ["-C", "link-args=-Wl,--unresolved-symbols=ignore-all"]
+
+# macOS: napi symbols resolve dynamically at .node load time.
+[target.aarch64-apple-darwin]
+rustflags = ["-C", "link-args=-Wl,-undefined,dynamic_lookup"]
+
+[target.x86_64-apple-darwin]
+rustflags = ["-C", "link-args=-Wl,-undefined,dynamic_lookup"]
