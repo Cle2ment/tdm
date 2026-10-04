@@ -10,8 +10,5 @@
     "test": "cargo test --workspace && pnpm -r --if-present test",
     "lint": "biome check .",
     "fmt:check": "cargo fmt --all --check"
-  },
-  "pnpm": {
-    "ignoredBuiltDependencies": ["msgpackr-extract"]
   }
 }

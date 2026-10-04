@@ -18,7 +18,16 @@ jobs:
           components: clippy, rustfmt
       - run: cargo fmt --all --check
       - run: cargo clippy --all-targets --workspace -- -D warnings
-      - run: cargo test --workspace
+      # tdm-napi's lib-test binary needs napi symbols from the Node runtime;
+      # they don't exist on Linux outside Node, so its unit tests run on
+      # Windows (MSVC links fine) and the napi job covers real .node loading.
+      - shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            cargo test --workspace --exclude tdm-napi
+          else
+            cargo test --workspace
+          fi
 
   ts:
     runs-on: ubuntu-latest
