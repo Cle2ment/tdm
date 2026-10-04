@@ -2,7 +2,5 @@ packages:
   - "adapters/*"
   - "backend/tdm-napi"
 
-# msgpackr-extract (transitive via effect) ships a build script we never need;
-# pnpm 10+ reads this from pnpm-workspace.yaml, not package.json.
-ignoredBuiltDependencies:
-  - msgpackr-extract
+allowBuilds:
+  msgpackr-extract: false
