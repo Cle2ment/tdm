@@ -10,3 +10,9 @@
 TS_RS_EXPORT_DIR = { value = "adapters/tdm-contract/src/generated", relative = true }
 # JSON wire numbers: keep u64/i64 bindings as `number` (ts-rs 12 defaults to `bigint`).
 TS_RS_LARGE_INT = "number"
+
+# napi symbols are supplied by the Node runtime when the .node module loads.
+# On Linux, linking tdm-napi's lib-test executable otherwise fails with
+# "undefined symbol: napi_*" (the symbols are never called in unit tests).
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-C", "link-args=-Wl,--unresolved-symbols=ignore-all"]
