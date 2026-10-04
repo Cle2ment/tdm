@@ -1,0 +1,12 @@
+# Cargo configuration for the TDM workspace.
+#
+# ts-rs 12 resolves `#[ts(export_to)]` paths relative to TS_RS_EXPORT_DIR
+# (default: ./bindings), so we point the export dir at the committed contract
+# package and let ts-rs place `<Type>.ts` (plus dependency artifacts such as
+# serde_json/JsonValue.ts) there, self-contained with relative imports.
+# `relative = true` resolves against the directory containing this file
+# (the repo root), keeping the setup machine-independent.
+[env]
+TS_RS_EXPORT_DIR = { value = "adapters/tdm-contract/src/generated", relative = true }
+# JSON wire numbers: keep u64/i64 bindings as `number` (ts-rs 12 defaults to `bigint`).
+TS_RS_LARGE_INT = "number"
