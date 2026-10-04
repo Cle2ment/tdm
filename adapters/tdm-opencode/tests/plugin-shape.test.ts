@@ -1,7 +1,14 @@
 import type { PluginInput, ToolContext } from "@opencode-ai/plugin";
 
 import type { DecisionRequest } from "@typedecision/client";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// Simulate the native binding being unavailable so the error path is
+// deterministic regardless of whether @typedecision/runtime is installed.
+// NapiClient catches the failed import and wraps it with its guidance message.
+vi.mock("@typedecision/runtime", () => {
+  throw new Error("simulated: native runtime not installed");
+});
 
 import plugin from "../src/index";
 
@@ -61,8 +68,8 @@ describe("plugin shape", () => {
 
     const output = await tdmJudge.execute(request, fakeToolContext);
 
-    // @typedecision/runtime has no dep edge from this package, so the lazy
-    // NapiClient import fails — the tool must report it, not crash the host.
+    // @typedecision/runtime is vi.mocked to throw above: the lazy NapiClient
+    // import fails — the tool must report it, not crash the host.
     expect(output).toMatch(/^TDM judge failed: /);
     expect(output).toContain("Failed to load the TDM native runtime");
   });
