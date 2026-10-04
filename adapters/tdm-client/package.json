@@ -1,0 +1,25 @@
+{
+  "name": "@typedecision/client",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT OR Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "github.com/Cle2ment/tdm",
+    "directory": "adapters/tdm-client"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@typedecision/contract": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "latest",
+    "vitest": "latest"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  }
+}

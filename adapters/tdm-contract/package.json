@@ -1,0 +1,28 @@
+{
+  "name": "@typedecision/contract",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT OR Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "github.com/Cle2ment/tdm",
+    "directory": "adapters/tdm-contract"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "src",
+    "schema"
+  ],
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./schema/*": "./schema/*"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  }
+}
