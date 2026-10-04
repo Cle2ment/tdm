@@ -11,26 +11,28 @@
   "publishConfig": {
     "access": "public"
   },
-  "main": "index.js",
-  "types": "index.d.ts",
+  "main": "index.ts",
+  "types": "index.ts",
   "files": [
-    "index.js",
-    "index.d.ts",
+    "index.ts",
     "*.node"
   ],
   "napi": {
     "binaryName": "tdm-runtime"
   },
   "scripts": {
-    "build": "napi build --platform --no-js --dts target/index.d.ts --release",
-    "build:debug": "napi build --platform --no-js --dts target/index.d.ts",
-    "smoke": "node scripts/smoke.mjs",
-    "smoke:bun": "bun scripts/smoke.mjs"
+    "build": "napi build --platform --no-js --release",
+    "build:debug": "napi build --platform --no-js",
+    "smoke": "node scripts/smoke.ts",
+    "smoke:bun": "bun scripts/smoke.ts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@typedecision/contract": "workspace:*"
   },
   "devDependencies": {
-    "@napi-rs/cli": "^3.10.6"
+    "@napi-rs/cli": "^3.10.6",
+    "@types/node": "^26",
+    "typescript": "^7"
   }
 }
