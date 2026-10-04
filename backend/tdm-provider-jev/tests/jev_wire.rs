@@ -97,14 +97,19 @@ async fn mounted_ok() -> (MockServer, JevProvider) {
 }
 
 /// Server answering every POST with `status` + `body`.
-async fn mounted_status(status: u16, body: &str) -> JevProvider {
+/// The server is returned alongside the provider so callers keep it alive
+/// for the test's duration — dropping it frees the port, which a parallel
+/// test's server can then claim (observed as cross-test contamination on
+/// Linux CI).
+async fn mounted_status(status: u16, body: &str) -> (MockServer, JevProvider) {
     let server = MockServer::start().await;
     Mock::given(method("POST"))
         .and(path("/"))
         .respond_with(ResponseTemplate::new(status).set_body_string(body))
         .mount(&server)
         .await;
-    test_provider(server.uri())
+    let provider = test_provider(server.uri());
+    (server, provider)
 }
 
 // ---------------------------------------------------------------------------
@@ -215,7 +220,7 @@ async fn maps_responses_for_all_primitives() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn maps_401_to_client_error() {
-    let provider = mounted_status(401, r#"{"error":"unauthorized"}"#).await;
+    let (_server, provider) = mounted_status(401, r#"{"error":"unauthorized"}"#).await;
     let error = provider.judge(sample_request()).await.unwrap_err();
     let retryable = error.is_retryable();
     assert!(
@@ -232,7 +237,7 @@ async fn maps_401_to_client_error() {
 #[tokio::test(flavor = "multi_thread")]
 async fn maps_422_to_client_error_with_invalid_request_code() {
     let body = "x".repeat(800);
-    let provider = mounted_status(422, &body).await;
+    let (_server, provider) = mounted_status(422, &body).await;
     let error = provider.judge(sample_request()).await.unwrap_err();
     let retryable = error.is_retryable();
     assert!(
@@ -255,7 +260,7 @@ async fn maps_422_to_client_error_with_invalid_request_code() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn maps_429_to_retryable_server_error() {
-    let provider = mounted_status(429, r#"{"error":"rate limited"}"#).await;
+    let (_server, provider) = mounted_status(429, r#"{"error":"rate limited"}"#).await;
     let error = provider.judge(sample_request()).await.unwrap_err();
     assert!(
         matches!(&error, TdmError::Server { status: 429, .. }),
@@ -266,7 +271,7 @@ async fn maps_429_to_retryable_server_error() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn maps_529_to_retryable_server_error() {
-    let provider = mounted_status(529, "overloaded").await;
+    let (_server, provider) = mounted_status(529, "overloaded").await;
     let error = provider.judge(sample_request()).await.unwrap_err();
     assert!(
         matches!(&error, TdmError::Server { status: 529, .. }),
@@ -277,7 +282,7 @@ async fn maps_529_to_retryable_server_error() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn maps_500_to_retryable_server_error() {
-    let provider = mounted_status(500, "boom").await;
+    let (_server, provider) = mounted_status(500, "boom").await;
     let error = provider.judge(sample_request()).await.unwrap_err();
     let retryable = error.is_retryable();
     assert!(
@@ -296,7 +301,7 @@ async fn maps_500_to_retryable_server_error() {
 /// reserved for 4xx statuses, and it is not retryable either.
 #[tokio::test(flavor = "multi_thread")]
 async fn maps_malformed_success_body_to_quality() {
-    let provider = mounted_status(200, "Ceci n'est pas du JSON").await;
+    let (_server, provider) = mounted_status(200, "Ceci n'est pas du JSON").await;
     let error = provider.judge(sample_request()).await.unwrap_err();
     assert!(matches!(&error, TdmError::Quality { .. }), "got {error:?}");
     assert!(!error.is_retryable());
