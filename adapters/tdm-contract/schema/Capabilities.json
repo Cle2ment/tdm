@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Capabilities",
+  "description": "Provider capability envelope used for routing negotiation (ADR-0003).",
+  "type": "object",
+  "properties": {
+    "batch": {
+      "description": "Whether the provider supports parallel question batches.",
+      "type": "boolean"
+    },
+    "maxStateBytes": {
+      "description": "Maximum accepted [`DecisionRequest::state`] size in bytes.",
+      "type": "integer",
+      "format": "uint",
+      "minimum": 0
+    },
+    "primitives": {
+      "description": "Primitives the provider can judge.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/PrimitiveKind"
+      }
+    }
+  },
+  "required": [
+    "primitives",
+    "batch",
+    "maxStateBytes"
+  ],
+  "$defs": {
+    "PrimitiveKind": {
+      "description": "Coarse capability class of a [`Primitive`], used for provider negotiation.",
+      "type": "string",
+      "enum": [
+        "choice",
+        "noul",
+        "score"
+      ]
+    }
+  }
+}

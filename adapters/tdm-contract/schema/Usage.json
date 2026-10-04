@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Usage",
+  "description": "Token usage of a judgment call (cost accounting input).",
+  "type": "object",
+  "properties": {
+    "inputTokens": {
+      "description": "Input tokens consumed.",
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0
+    },
+    "outputTokens": {
+      "description": "Output tokens produced.",
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0
+    }
+  },
+  "required": [
+    "inputTokens",
+    "outputTokens"
+  ]
+}

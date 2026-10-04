@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ProviderMeta",
+  "description": "Which provider answered, and with which model.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "description": "Stable provider identifier (e.g. `\"jev\"`, `\"mock\"`).",
+      "type": "string"
+    },
+    "model": {
+      "description": "Concrete model identifier, when the provider has one.",
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "id"
+  ]
+}

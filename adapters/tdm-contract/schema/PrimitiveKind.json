@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PrimitiveKind",
+  "description": "Coarse capability class of a [`Primitive`], used for provider negotiation.",
+  "type": "string",
+  "enum": [
+    "choice",
+    "noul",
+    "score"
+  ]
+}

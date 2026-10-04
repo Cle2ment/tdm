@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DecisionRequest",
+  "description": "One batch of independent questions sharing the same decision state.",
+  "type": "object",
+  "properties": {
+    "questions": {
+      "description": "Independent questions, judged in parallel against `state`.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Question"
+      }
+    },
+    "state": {
+      "description": "JSON value carrying all context required for the judgments."
+    }
+  },
+  "required": [
+    "state",
+    "questions"
+  ],
+  "$defs": {
+    "Primitive": {
+      "description": "The three judged primitives.",
+      "oneOf": [
+        {
+          "description": "Single choice: winning label plus the competing probability distribution.",
+          "type": "object",
+          "properties": {
+            "options": {
+              "description": "Candidate options (1..=255).",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "type": {
+              "type": "string",
+              "const": "choice"
+            }
+          },
+          "required": [
+            "type",
+            "options"
+          ]
+        },
+        {
+          "description": "Boolean judgment: P(yes). Carries no separate confidence.",
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "noul"
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "description": "Ordered score level: chosen level plus the level distribution.",
+          "type": "object",
+          "properties": {
+            "levels": {
+              "description": "Ordered level labels (2..=10).",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "type": {
+              "type": "string",
+              "const": "score"
+            }
+          },
+          "required": [
+            "type",
+            "levels"
+          ]
+        }
+      ]
+    },
+    "Question": {
+      "description": "A single question to judge. `id` is a code-side identifier and is never sent\nto the model; `instructions` must be semantically self-contained.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "description": "Code-side identifier; echoed back in [`Answer::id`].",
+          "type": "string"
+        },
+        "instructions": {
+          "description": "Judgment instructions (complete self-contained semantics).",
+          "type": "string"
+        },
+        "primitive": {
+          "description": "Which primitive to judge.",
+          "$ref": "#/$defs/Primitive"
+        }
+      },
+      "required": [
+        "id",
+        "instructions",
+        "primitive"
+      ]
+    }
+  }
+}

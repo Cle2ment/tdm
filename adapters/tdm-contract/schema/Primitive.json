@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Primitive",
+  "description": "The three judged primitives.",
+  "oneOf": [
+    {
+      "description": "Single choice: winning label plus the competing probability distribution.",
+      "type": "object",
+      "properties": {
+        "options": {
+          "description": "Candidate options (1..=255).",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "type": {
+          "type": "string",
+          "const": "choice"
+        }
+      },
+      "required": [
+        "type",
+        "options"
+      ]
+    },
+    {
+      "description": "Boolean judgment: P(yes). Carries no separate confidence.",
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "noul"
+        }
+      },
+      "required": [
+        "type"
+      ]
+    },
+    {
+      "description": "Ordered score level: chosen level plus the level distribution.",
+      "type": "object",
+      "properties": {
+        "levels": {
+          "description": "Ordered level labels (2..=10).",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "type": {
+          "type": "string",
+          "const": "score"
+        }
+      },
+      "required": [
+        "type",
+        "levels"
+      ]
+    }
+  ]
+}

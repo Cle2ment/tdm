@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "HealthReport",
+  "description": "Liveness / connectivity probe result.",
+  "type": "object",
+  "properties": {
+    "detail": {
+      "description": "Optional human-readable detail.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "latencyMs": {
+      "description": "Probe latency in milliseconds.",
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0
+    },
+    "ok": {
+      "description": "Whether the provider is healthy.",
+      "type": "boolean"
+    },
+    "version": {
+      "description": "Optional provider/API version string.",
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "ok",
+    "latencyMs"
+  ]
+}

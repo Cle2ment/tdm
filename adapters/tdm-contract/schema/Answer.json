@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Answer",
+  "description": "Answer to a single [`Question`].",
+  "type": "object",
+  "properties": {
+    "confidence": {
+      "description": "Distribution concentration; always `None` for noul.",
+      "type": [
+        "number",
+        "null"
+      ],
+      "format": "double"
+    },
+    "id": {
+      "description": "Echoes [`Question::id`].",
+      "type": "string"
+    },
+    "value": {
+      "description": "Typed payload.",
+      "$ref": "#/$defs/AnswerValue"
+    }
+  },
+  "required": [
+    "id",
+    "value"
+  ],
+  "$defs": {
+    "AnswerValue": {
+      "description": "Typed answer payload; discriminates on the judged primitive.",
+      "oneOf": [
+        {
+          "description": "Winning label plus the probability distribution over options.",
+          "type": "object",
+          "properties": {
+            "distribution": {
+              "description": "Competing distribution: (option label, probability) pairs.",
+              "type": "array",
+              "items": {
+                "type": "array",
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "number",
+                    "format": "double"
+                  }
+                ]
+              }
+            },
+            "label": {
+              "description": "Chosen option label.",
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "choice"
+            }
+          },
+          "required": [
+            "type",
+            "label",
+            "distribution"
+          ]
+        },
+        {
+          "description": "P(yes) for a boolean judgment.",
+          "type": "object",
+          "properties": {
+            "probability": {
+              "description": "Probability that the answer is \"yes\", in `0.0..=1.0`.",
+              "type": "number",
+              "format": "double"
+            },
+            "type": {
+              "type": "string",
+              "const": "noul"
+            }
+          },
+          "required": [
+            "type",
+            "probability"
+          ]
+        },
+        {
+          "description": "Chosen level plus the distribution over levels.",
+          "type": "object",
+          "properties": {
+            "distribution": {
+              "description": "Distribution: (level label, probability) pairs.",
+              "type": "array",
+              "items": {
+                "type": "array",
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "number",
+                    "format": "double"
+                  }
+                ]
+              }
+            },
+            "level": {
+              "description": "Chosen level label.",
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "score"
+            },
+            "weighted": {
+              "description": "Weighted score derived from the level distribution.",
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "required": [
+            "type",
+            "level",
+            "weighted",
+            "distribution"
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,209 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DecisionResult",
+  "description": "Full result of a judgment batch.",
+  "type": "object",
+  "properties": {
+    "answers": {
+      "description": "One answer per request question, in the same order.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Answer"
+      }
+    },
+    "latencyMs": {
+      "description": "End-to-end latency in milliseconds.",
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0
+    },
+    "provider": {
+      "description": "Which provider produced this result.",
+      "$ref": "#/$defs/ProviderMeta"
+    },
+    "usage": {
+      "description": "Token usage (cost accounting input).",
+      "$ref": "#/$defs/Usage"
+    }
+  },
+  "required": [
+    "answers",
+    "usage",
+    "provider",
+    "latencyMs"
+  ],
+  "$defs": {
+    "Answer": {
+      "description": "Answer to a single [`Question`].",
+      "type": "object",
+      "properties": {
+        "confidence": {
+          "description": "Distribution concentration; always `None` for noul.",
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "id": {
+          "description": "Echoes [`Question::id`].",
+          "type": "string"
+        },
+        "value": {
+          "description": "Typed payload.",
+          "$ref": "#/$defs/AnswerValue"
+        }
+      },
+      "required": [
+        "id",
+        "value"
+      ]
+    },
+    "AnswerValue": {
+      "description": "Typed answer payload; discriminates on the judged primitive.",
+      "oneOf": [
+        {
+          "description": "Winning label plus the probability distribution over options.",
+          "type": "object",
+          "properties": {
+            "distribution": {
+              "description": "Competing distribution: (option label, probability) pairs.",
+              "type": "array",
+              "items": {
+                "type": "array",
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "number",
+                    "format": "double"
+                  }
+                ]
+              }
+            },
+            "label": {
+              "description": "Chosen option label.",
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "choice"
+            }
+          },
+          "required": [
+            "type",
+            "label",
+            "distribution"
+          ]
+        },
+        {
+          "description": "P(yes) for a boolean judgment.",
+          "type": "object",
+          "properties": {
+            "probability": {
+              "description": "Probability that the answer is \"yes\", in `0.0..=1.0`.",
+              "type": "number",
+              "format": "double"
+            },
+            "type": {
+              "type": "string",
+              "const": "noul"
+            }
+          },
+          "required": [
+            "type",
+            "probability"
+          ]
+        },
+        {
+          "description": "Chosen level plus the distribution over levels.",
+          "type": "object",
+          "properties": {
+            "distribution": {
+              "description": "Distribution: (level label, probability) pairs.",
+              "type": "array",
+              "items": {
+                "type": "array",
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "number",
+                    "format": "double"
+                  }
+                ]
+              }
+            },
+            "level": {
+              "description": "Chosen level label.",
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "score"
+            },
+            "weighted": {
+              "description": "Weighted score derived from the level distribution.",
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "required": [
+            "type",
+            "level",
+            "weighted",
+            "distribution"
+          ]
+        }
+      ]
+    },
+    "ProviderMeta": {
+      "description": "Which provider answered, and with which model.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "description": "Stable provider identifier (e.g. `\"jev\"`, `\"mock\"`).",
+          "type": "string"
+        },
+        "model": {
+          "description": "Concrete model identifier, when the provider has one.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "Usage": {
+      "description": "Token usage of a judgment call (cost accounting input).",
+      "type": "object",
+      "properties": {
+        "inputTokens": {
+          "description": "Input tokens consumed.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "outputTokens": {
+          "description": "Output tokens produced.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "inputTokens",
+        "outputTokens"
+      ]
+    }
+  }
+}
