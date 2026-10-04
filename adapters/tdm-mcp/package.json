@@ -1,0 +1,45 @@
+{
+  "name": "@typedecision/mcp",
+  "version": "0.1.0",
+  "description": "TDM MCP server: exposes typed, auditable TDM judgments (tdm_judge, tdm_health, tdm_providers) over stdio to any MCP-capable host. Plan D5: the provider API key stays in this server process — agents only ever see the tools.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "github.com/Cle2ment/tdm",
+    "directory": "adapters/tdm-mcp"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "src"
+  ],
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "bin": {
+    "tdm-mcp": "./src/cli.ts"
+  },
+  "engines": {
+    "node": ">=22.6"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "latest",
+    "@typedecision/client": "workspace:*",
+    "@typedecision/contract": "workspace:*",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^26",
+    "typescript": "latest",
+    "vitest": "latest"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  }
+}
