@@ -2,15 +2,20 @@
  * TDM harness adapter for opencode (M0 tracer bullet): registers one custom
  * tool, `tdm_judge`, so the agent can run typed judgments through TDM.
  *
- * Plugin shape matches the installed opencode host: the module default-exports
- * a `Plugin` — `(input: PluginInput, options?) => Promise<Hooks>` — and the
- * host resolves exactly `mod.default` when loading a plugin module. No hooks
- * are used yet; automatic risk scoring via hooks is milestone M2.
+ * Plugin shape matches opencode v2 hosts: the module default-exports a
+ * `Plugin` *definition object* — `{ id, setup }` — and the host invokes
+ * `setup(ctx)` exactly once. `tdm_judge` is registered through
+ * `ctx.tool.transform(editor => editor.add({...}))`, where tools take a
+ * JSON Schema `input` (zod → `z.toJSONSchema`) and an async `execute`
+ * returning `{ content }`. `setup` returns a cleanup that disposes the
+ * registration. The SDK package is imported type-only, so the plugin ships
+ * no runtime SDK dependency (the host supplies the behavior). Automatic
+ * risk scoring via hooks is milestone M2.
  */
-import type { Plugin } from "@opencode-ai/plugin";
-import { tool } from "@opencode-ai/plugin";
+import type { Plugin } from "@opencode/plugin";
 import type { TdmClient } from "@typedecision/client";
 import { createClient } from "@typedecision/client";
+import { z } from "zod";
 
 import { judgeArgs } from "./args";
 import { createJudgeHandler } from "./handler";
@@ -38,17 +43,35 @@ function getClient(): TdmClient {
   return cachedClient;
 }
 
-const tdmPlugin: Plugin = async () => {
-  const judge = createJudgeHandler(getClient());
-  return {
-    tool: {
-      tdm_judge: tool({
-        description: TOOL_DESCRIPTION,
-        args: judgeArgs,
-        execute: (args, context) => judge(args, context),
-      }),
-    },
-  };
-};
+/** The DecisionRequest contract as a validating zod schema. */
+const judgeRequest = z.object(judgeArgs);
 
-export default tdmPlugin;
+/** LLM-facing tool input schema, derived once at module load. */
+const judgeInputSchema = z.toJSONSchema(judgeRequest);
+
+export default {
+  id: "tdm",
+  setup: async (context) => {
+    const judge = createJudgeHandler(getClient());
+    const registration = await context.tool.transform((editor) => {
+      editor.add({
+        name: "tdm_judge",
+        description: TOOL_DESCRIPTION,
+        input: judgeInputSchema,
+        options: { codemode: false },
+        execute: async (args, toolContext) => {
+          const parsed = judgeRequest.safeParse(args);
+          if (!parsed.success) {
+            return {
+              content: `TDM judge rejected the arguments: ${parsed.error.message}`,
+            };
+          }
+          return { content: await judge(parsed.data, toolContext) };
+        },
+      });
+    });
+    return async () => {
+      await registration.dispose();
+    };
+  },
+} satisfies Plugin.Plugin;

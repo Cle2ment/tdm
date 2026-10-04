@@ -1,6 +1,6 @@
-import { tool } from "@opencode-ai/plugin";
 import type { DecisionRequest, DecisionResult, TdmClient } from "@typedecision/client";
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
 
 import { judgeArgs } from "../src/args";
 import { createJudgeHandler } from "../src/handler";
@@ -76,7 +76,7 @@ describe("DecisionRequest contract fixture", () => {
   });
 
   it("is accepted by the tool's zod args shape", () => {
-    const parsed = tool.schema.object(judgeArgs).parse(fixture);
+    const parsed = z.object(judgeArgs).parse(fixture);
     expect(parsed.questions).toHaveLength(3);
     expect(parsed.questions[2].primitive).toEqual({
       type: "score",
@@ -95,6 +95,6 @@ describe("DecisionRequest contract fixture", () => {
         },
       ],
     };
-    expect(tool.schema.object(judgeArgs).safeParse(bad).success).toBe(false);
+    expect(z.object(judgeArgs).safeParse(bad).success).toBe(false);
   });
 });

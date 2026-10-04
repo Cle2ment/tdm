@@ -4,6 +4,7 @@
   "description": "TDM harness adapter for opencode: registers a tdm_judge tool for typed, auditable judgments.",
   "license": "Apache-2.0",
   "type": "module",
+  "main": "src/index.ts",
   "repository": {
     "type": "git",
     "url": "github.com/Cle2ment/tdm",
@@ -26,11 +27,8 @@
     "@typedecision/contract": "workspace:*",
     "zod": "4.1.8"
   },
-  "peerDependencies": {
-    "@opencode-ai/plugin": ">=1.4.3"
-  },
   "devDependencies": {
-    "@opencode-ai/plugin": "^1.17.11",
+    "@opencode/plugin": "2.0.22",
     "typescript": "latest",
     "vitest": "latest"
   },

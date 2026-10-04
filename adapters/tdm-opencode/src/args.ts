@@ -2,10 +2,10 @@
  * zod args shape for the `tdm_judge` tool, mirroring the TDM `DecisionRequest`
  * contract (adapters/tdm-contract, generated from backend/tdm-core — D7).
  *
- * The opencode plugin SDK's `tool()` helper consumes a zod raw shape here and
- * the host converts it to the tool JSON schema for the LLM. zod is pinned to
- * the exact version @opencode-ai/plugin depends on, so host and plugin share
- * a single zod instance.
+ * The plugin derives the tool's JSON Schema input via `z.toJSONSchema` and
+ * reuses the same schema to validate args in `execute`. zod is pinned to the
+ * exact version @opencode/plugin depends on, so plugin and SDK share a
+ * single zod instance.
  */
 
 import type { JsonValue } from "@typedecision/contract";
