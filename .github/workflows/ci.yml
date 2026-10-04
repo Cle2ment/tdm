@@ -3,7 +3,16 @@ name: CI
 on:
   push:
     branches: [main]
+    # Pure documentation changes never touch build artifacts — skip CI.
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "LICENSE"
   pull_request:
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "LICENSE"
 
 jobs:
   rust:
