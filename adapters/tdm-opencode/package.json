@@ -1,7 +1,7 @@
 {
   "name": "@typedecision/opencode",
   "version": "0.1.0",
-  "description": "TDM harness adapter for opencode: registers a tdm_judge tool for typed, auditable judgments.",
+  "description": "TDM harness adapter for opencode: registers a tdm_judge tool for typed, auditable judgments and an automatic execute.before risk gate that escalates risky tool calls to user confirmation.",
   "license": "Apache-2.0",
   "type": "module",
   "main": "src/index.ts",

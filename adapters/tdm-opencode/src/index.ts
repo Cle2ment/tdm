@@ -1,16 +1,33 @@
 /**
- * TDM harness adapter for opencode (M0 tracer bullet): registers one custom
- * tool, `tdm_judge`, so the agent can run typed judgments through TDM.
+ * TDM harness adapter for opencode (M2): registers the `tdm_judge` tool AND
+ * an automatic risk gate over every other tool execution.
  *
  * Plugin shape matches opencode v2 hosts: the module default-exports a
  * `Plugin` *definition object* — `{ id, setup }` — and the host invokes
  * `setup(ctx)` exactly once. `tdm_judge` is registered through
  * `ctx.tool.transform(editor => editor.add({...}))`, where tools take a
  * JSON Schema `input` (zod → `z.toJSONSchema`) and an async `execute`
- * returning `{ content }`. `setup` returns a cleanup that disposes the
- * registration. The SDK package is imported type-only, so the plugin ships
- * no runtime SDK dependency (the host supplies the behavior). Automatic
- * risk scoring via hooks is milestone M2.
+ * returning `{ content }`. The host SDK (`@opencode/plugin`) is imported
+ * type-only; `@typedecision/client` is a regular dependency whose client is
+ * created lazily on first use, so plugin load stays side-effect free.
+ *
+ * M2 risk gate — automatic scoring of tool executions:
+ *
+ * 1. `ctx.tool.hook("execute.before", ...)` fires for every tool call with
+ *    `{ tool, sessionID, agent, messageID, id, input }`. The gate stashes a
+ *    fire-and-forget TDM judgment keyed by the call id, skipping read-only
+ *    allowlisted tools and `tdm_judge` itself.
+ * 2. `ctx.permission.hook("evaluate", ...)` — every built-in and MCP tool
+ *    routes its execution through the host's permission evaluation with
+ *    `source: { type: "tool", messageID, id }`, and the host reads the
+ *    post-hook `effect` back. When the policy escalates (low confidence,
+ *    "dangerous" score, or high P(ask-first)), the gate mutates `effect` to
+ *    `"ask"`, so opencode prompts the user before executing; rejecting the
+ *    prompt blocks the call.
+ *
+ * Fail-open everywhere: if the judge is unavailable, calls are allowed with a
+ * `console.warn`, and the gate never breaks host tool execution. The
+ * confidence floor is overridable via the plugin's `confidenceFloor` option.
  */
 import type { Plugin } from "@opencode/plugin";
 import type { TdmClient } from "@typedecision/client";
@@ -18,8 +35,10 @@ import { createClient } from "@typedecision/client";
 import { z } from "zod";
 
 import { judgeArgs } from "./args";
+import { createRiskGate } from "./gate";
 import { createJudgeHandler } from "./handler";
 
+export { createRiskGate, type RiskGate } from "./gate";
 export type { JudgeCallContext, JudgeHandler } from "./handler";
 export { createJudgeHandler } from "./handler";
 
@@ -49,6 +68,11 @@ const judgeRequest = z.object(judgeArgs);
 /** LLM-facing tool input schema, derived once at module load. */
 const judgeInputSchema = z.toJSONSchema(judgeRequest);
 
+/** Anything registered during setup that must be disposed on cleanup. */
+interface Disposable {
+  dispose: () => Promise<void> | void;
+}
+
 export default {
   id: "tdm",
   setup: async (context) => {
@@ -70,8 +94,52 @@ export default {
         },
       });
     });
+
+    // M2 risk gate. Both hook domains are guarded: older/odd host builds may
+    // not expose them (and the unit-test context passes a bare ctx), in which
+    // case the gate degrades to "no automatic scoring" with a warning instead
+    // of breaking plugin load.
+    const disposables: Disposable[] = [registration];
+    const gate = createRiskGate(getClient(), context.options);
+
+    if (typeof context.permission?.hook === "function") {
+      try {
+        const evaluate = await context.permission.hook("evaluate", (event) =>
+          gate.onPermissionEvaluate(event),
+        );
+        disposables.push(evaluate);
+      } catch (cause) {
+        console.warn(
+          "[tdm] permission.evaluate hook unavailable, automatic risk scoring degraded:",
+          cause instanceof Error ? cause.message : String(cause),
+        );
+      }
+    }
+    if (typeof context.tool.hook === "function") {
+      try {
+        const before = await context.tool.hook("execute.before", (event) =>
+          gate.onExecuteBefore(event),
+        );
+        disposables.push(before);
+      } catch (cause) {
+        console.warn(
+          "[tdm] tool.execute.before hook unavailable, automatic risk scoring degraded:",
+          cause instanceof Error ? cause.message : String(cause),
+        );
+      }
+    }
+
     return async () => {
-      await registration.dispose();
+      for (const disposable of disposables.reverse()) {
+        try {
+          await disposable.dispose();
+        } catch (cause) {
+          console.warn(
+            "[tdm] dispose failed:",
+            cause instanceof Error ? cause.message : String(cause),
+          );
+        }
+      }
     };
   },
 } satisfies Plugin.Plugin;
