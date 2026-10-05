@@ -245,20 +245,22 @@ importers:
         version: 5.0.3(@opentelemetry/api@1.9.0)(@types/node@26.6.4)(vite@8.3.2(@types/node@26.6.4)(yaml@2.9.1))
 
   backend/tdm-napi:
-    dependencies:
-      '@typedecision/contract':
-        specifier: workspace:*
-        version: link:../../adapters/tdm-contract
     devDependencies:
       '@napi-rs/cli':
         specifier: ^3.10.6
         version: 3.10.6(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@types/node@26.6.4)
+      '@typedecision/contract':
+        specifier: workspace:*
+        version: link:../../adapters/tdm-contract
       '@types/node':
         specifier: ^26
         version: 26.6.4
+      tsdown:
+        specifier: latest
+        version: 0.23.0(typescript@6.0.3)
       typescript:
-        specifier: ^7
-        version: 7.0.2
+        specifier: ^6
+        version: 6.0.3
 
 packages:
 

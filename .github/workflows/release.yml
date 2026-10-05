@@ -1,8 +1,10 @@
 # Release pipeline for the npm `tdm-runtime` umbrella package and its five
-# per-platform binary packages (backend/tdm-napi/npm/<triple>/).
+# per-platform binary packages (backend/tdm-napi/npm/<triple>/), plus the
+# `opencode-tdm` plugin (adapters/tdm-opencode).
 #
 # - tag push `v*`: 5-target release build, then provenance-attested publish
-#   of each platform package followed by the umbrella.
+#   of each platform package followed by the umbrella, then the plugin
+#   (which depends on tdm-runtime, so it goes last).
 # - workflow_dispatch: matrix build only. Publish runs exclusively on a `v*`
 #   tag; the `dry_run` input makes that explicit and never publishes.
 name: Release
@@ -84,22 +86,32 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
+      # pnpm install is required: the umbrella's prepublishOnly runs
+      # `pnpm run build:dts` (tsdown) to emit dist/index.d.ts.
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 26
+          cache: pnpm
           registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
       - name: Download all bindings
         uses: actions/download-artifact@v4
         with:
           path: dist
           merge-multiple: true
-      - name: Tag must match package version
+      - name: Tag must match package versions
         shell: bash
         run: |
           tag="${GITHUB_REF_NAME#v}"
           version="$(node -p "require('./backend/tdm-napi/package.json').version")"
           if [ "$tag" != "$version" ]; then
             echo "::error::tag v$tag does not match backend/tdm-napi package.json version $version"
+            exit 1
+          fi
+          plugin_version="$(node -p "require('./adapters/tdm-opencode/package.json').version")"
+          if [ "$tag" != "$plugin_version" ]; then
+            echo "::error::tag v$tag does not match adapters/tdm-opencode package.json version $plugin_version"
             exit 1
           fi
       - name: Place bindings into platform package dirs
@@ -128,3 +140,32 @@ jobs:
           done
           echo "Publishing tdm-runtime (umbrella)"
           (cd backend/tdm-napi && npm publish --provenance --access public)
+
+  publish-plugin:
+    # Publishes the opencode-tdm plugin AFTER the umbrella (it depends on
+    # tdm-runtime). Its "tdm-runtime": "workspace:*" dependency requires
+    # `pnpm publish` (which rewrites workspace:*); npm publish must NOT be
+    # used for this package.
+    if: github.ref_type == 'tag' && startsWith(github.ref_name, 'v') && inputs.dry_run != true
+    needs: publish
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      # OIDC for npm provenance attestation.
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
+      - name: Build plugin
+        run: pnpm --filter opencode-tdm build
+      - name: Publish opencode-tdm
+        run: pnpm --filter opencode-tdm publish --access public --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          npm_config_provenance: "true"

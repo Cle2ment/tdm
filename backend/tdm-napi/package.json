@@ -23,9 +23,10 @@
     "access": "public"
   },
   "main": "index.ts",
-  "types": "index.ts",
+  "types": "dist/index.d.ts",
   "files": [
     "index.ts",
+    "dist",
     "README.md",
     "LICENSE"
   ],
@@ -42,12 +43,11 @@
   "scripts": {
     "build": "napi build --platform --no-js --release",
     "build:debug": "napi build --platform --no-js",
+    "build:dts": "tsdown",
+    "prepublishOnly": "pnpm run build:dts",
     "smoke": "node scripts/smoke.ts",
     "smoke:bun": "bun scripts/smoke.ts",
     "typecheck": "tsc --noEmit"
-  },
-  "dependencies": {
-    "@typedecision/contract": "workspace:*"
   },
   "optionalDependencies": {
     "tdm-runtime-win32-x64-msvc": "0.1.0",
@@ -59,6 +59,8 @@
   "devDependencies": {
     "@napi-rs/cli": "^3.10.6",
     "@types/node": "^26",
-    "typescript": "^7"
+    "@typedecision/contract": "workspace:*",
+    "tsdown": "latest",
+    "typescript": "^6"
   }
 }

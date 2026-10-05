@@ -20,6 +20,14 @@ import { fileURLToPath } from "node:url";
 
 import type { DecisionRequest, DecisionResult, HealthReport } from "@typedecision/contract";
 
+/**
+ * Public type surface, re-exported so consumers can name request/result types
+ * without depending on `@typedecision/contract` (intentionally unpublished —
+ * its types are inlined into `dist/index.d.ts` at build time). Type-only:
+ * erased at runtime.
+ */
+export type { DecisionRequest, DecisionResult, HealthReport };
+
 /** Harness + session identity attached to every call (audit/cache tagging). */
 export interface SessionCtx {
   harness: string;
