@@ -4,9 +4,9 @@ import type { DecisionRequest } from "@typedecision/client";
 import { describe, expect, it, vi } from "vitest";
 
 // Simulate the native binding being unavailable so the error path is
-// deterministic regardless of whether @typedecision/runtime is installed.
+// deterministic regardless of whether tdm-runtime is installed.
 // NapiClient catches the failed import and wraps it with its guidance message.
-vi.mock("@typedecision/runtime", () => {
+vi.mock("tdm-runtime", () => {
   throw new Error("simulated: native runtime not installed");
 });
 
@@ -96,7 +96,7 @@ describe("plugin shape", () => {
 
     const output = await tdmJudge.execute(request, fakeToolContext);
 
-    // @typedecision/runtime is vi.mocked to throw above: the lazy NapiClient
+    // tdm-runtime is vi.mocked to throw above: the lazy NapiClient
     // import fails — the tool must report it, not crash the host.
     expect(output.content).toMatch(/^TDM judge failed: /);
     expect(output.content).toContain("Failed to load the TDM native runtime");
@@ -198,7 +198,7 @@ describe("M2 risk gate registration", () => {
     };
     await permissionHooks[0]?.callback(event);
 
-    // @typedecision/runtime is mocked to throw in this file, so the judgment
+    // tdm-runtime is mocked to throw in this file, so the judgment
     // fails open — effect must stay "allow" and the host must not crash.
     expect(event.effect).toBe("allow");
   });

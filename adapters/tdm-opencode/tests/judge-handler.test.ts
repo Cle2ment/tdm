@@ -123,7 +123,7 @@ describe("createJudgeHandler", () => {
 
   it("converts client failures into a clean error string instead of throwing", async () => {
     const { client } = fakeClient(async () => {
-      throw new Error('Failed to load the TDM native runtime from "@typedecision/runtime".');
+      throw new Error('Failed to load the TDM native runtime from "tdm-runtime".');
     });
 
     const output = await createJudgeHandler(client)(request);

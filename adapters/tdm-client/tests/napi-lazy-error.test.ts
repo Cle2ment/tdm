@@ -25,13 +25,13 @@ describe("NapiClient lazy loading", () => {
   it("rejects judge() with a helpful install/build message when the module cannot be loaded", async () => {
     const client = new NapiClient();
     await expect(client.judge(REQUEST)).rejects.toThrow(
-      /@typedecision\/runtime is the native \(napi-rs\) binding package/,
+      /tdm-runtime is the native \(napi-rs\) binding package/,
     );
     expect(state.loadAttempts).toBeGreaterThan(0);
   });
 
   it("rejects health() with the same guidance", async () => {
     const client = new NapiClient();
-    await expect(client.health()).rejects.toThrow(/pnpm add @typedecision\/runtime/);
+    await expect(client.health()).rejects.toThrow(/pnpm add tdm-runtime/);
   });
 });

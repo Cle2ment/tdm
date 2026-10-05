@@ -8,8 +8,10 @@
  * `ctx.tool.transform(editor => editor.add({...}))`, where tools take a
  * JSON Schema `input` (zod → `z.toJSONSchema`) and an async `execute`
  * returning `{ content }`. The host SDK (`@opencode/plugin`) is imported
- * type-only; `@typedecision/client` is a regular dependency whose client is
- * created lazily on first use, so plugin load stays side-effect free.
+ * type-only; `@typedecision/client` is bundled into this artifact and its
+ * client is created lazily on first use, so plugin load stays side-effect
+ * free. The client loads the native binding from `tdm-runtime` (the published
+ * runtime package) by module name at call time.
  *
  * M2 risk gate — automatic scoring of tool executions:
  *
@@ -30,8 +32,7 @@
  * confidence floor is overridable via the plugin's `confidenceFloor` option.
  */
 import type { Plugin } from "@opencode/plugin";
-import type { TdmClient } from "@typedecision/client";
-import { createClient } from "@typedecision/client";
+import { NapiClient, type TdmClient } from "@typedecision/client";
 import { z } from "zod";
 
 import { judgeArgs } from "./args";
@@ -52,13 +53,22 @@ Pass \`state\` (any JSON carrying the full decision context) plus one or more in
 Answers are typed and probabilistic: every answer carries a confidence, and choice/score answers include the full (label, probability) distribution. Prefer this tool over deciding inline whenever the judgment feeds code logic.`;
 
 /**
+ * Module specifier of the native binding the plugin loads at call time. The
+ * published package depends on `tdm-runtime` (backend/tdm-napi), so the
+ * client must load that name — not the workspace client's unpublished
+ * `tdm-runtime` default. Constructing NapiClient directly (instead
+ * of `createClient`) is what pins the specifier.
+ */
+const RUNTIME_MODULE = "tdm-runtime";
+
+/**
  * Client singleton, created on the first tool call — mirrors NapiClient's lazy
  * native-module load and keeps plugin load free of side effects.
  */
 let cachedClient: TdmClient | undefined;
 
 function getClient(): TdmClient {
-  cachedClient ??= createClient({ mode: "auto" });
+  cachedClient ??= new NapiClient({ runtimeModule: RUNTIME_MODULE });
   return cachedClient;
 }
 
