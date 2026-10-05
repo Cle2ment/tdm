@@ -1,24 +1,33 @@
+import { execSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
 /**
- * Build-artifact test: run after `pnpm build` (the build script runs before
- * publish and is part of CI). Fully local — no network access.
+ * Build-artifact test: self-building — if dist/index.js is missing (e.g. a
+ * clean CI checkout), the package is built in beforeAll. Fully local — no
+ * network access.
  *
- * - The existence assertion runs everywhere: a missing dist/index.js means
- *   the package was not built.
+ * - The existence assertion runs everywhere: after the build, dist/index.js
+ *   must exist.
  * - The dynamic-import probe runs under bun only (the plugin host's other
  *   supported runtime); it asserts the bundle really evaluates to a V2
  *   plugin definition object.
  */
-const distEntry = path.resolve(import.meta.dirname, "../dist/index.js");
+const packageDir = path.resolve(import.meta.dirname, "..");
+const distEntry = path.join(packageDir, "dist/index.js");
 
 const isBun = (process.versions as Record<string, string | undefined>).bun !== undefined;
 
 describe("build artifact", () => {
-  it("dist/index.js exists (run `pnpm build` first)", () => {
+  beforeAll(() => {
+    if (!existsSync(distEntry)) {
+      execSync("pnpm run build", { cwd: packageDir, stdio: "inherit" });
+    }
+  }, 120_000);
+
+  it("dist/index.js exists (self-built when missing)", () => {
     expect(existsSync(distEntry)).toBe(true);
   });
 
