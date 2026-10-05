@@ -6,7 +6,7 @@
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "github.com/Cle2ment/tdm",
+    "url": "git+https://github.com/Cle2ment/tdm.git",
     "directory": "adapters/tdm-mcp"
   },
   "publishConfig": {

@@ -5,7 +5,7 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "github.com/Cle2ment/tdm",
+    "url": "git+https://github.com/Cle2ment/tdm.git",
     "directory": "adapters/tdm-client"
   },
   "publishConfig": {

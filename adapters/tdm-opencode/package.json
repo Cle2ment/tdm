@@ -1,6 +1,6 @@
 {
   "name": "@typedecision/opencode-tdm",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "TDM harness adapter for opencode: registers a tdm_judge tool for typed, auditable judgments and an automatic execute.before risk gate that escalates risky tool calls to user confirmation.",
   "keywords": [
     "opencode",
@@ -16,7 +16,7 @@
   "types": "./dist/index.d.ts",
   "repository": {
     "type": "git",
-    "url": "github.com/Cle2ment/tdm",
+    "url": "git+https://github.com/Cle2ment/tdm.git",
     "directory": "adapters/tdm-opencode"
   },
   "publishConfig": {

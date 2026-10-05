@@ -1,6 +1,6 @@
 {
   "name": "@typedecision/runtime",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Native (napi-rs) TDM decision runtime: judge/health in-process for bun and node >= 22.6.",
   "keywords": [
     "tdm",
@@ -50,11 +50,11 @@
     "typecheck": "tsc --noEmit"
   },
   "optionalDependencies": {
-    "@typedecision/runtime-win32-x64-msvc": "0.1.1",
-    "@typedecision/runtime-linux-x64-gnu": "0.1.1",
-    "@typedecision/runtime-linux-arm64-gnu": "0.1.1",
-    "@typedecision/runtime-darwin-x64": "0.1.1",
-    "@typedecision/runtime-darwin-arm64": "0.1.1"
+    "@typedecision/runtime-win32-x64-msvc": "0.1.2",
+    "@typedecision/runtime-linux-x64-gnu": "0.1.2",
+    "@typedecision/runtime-linux-arm64-gnu": "0.1.2",
+    "@typedecision/runtime-darwin-x64": "0.1.2",
+    "@typedecision/runtime-darwin-arm64": "0.1.2"
   },
   "devDependencies": {
     "@napi-rs/cli": "^3.10.6",
