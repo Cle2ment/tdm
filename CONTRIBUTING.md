@@ -10,7 +10,7 @@ same commit.**
 | Tool | Version | Notes |
 | --- | --- | --- |
 | Rust | stable (pinned by `rust-toolchain.toml`) | Windows: MSVC Build Tools required |
-| Node.js | >= 20 (26 used in CI) | type stripping runs raw TS |
+| Node.js | >= 22.6 (26 used in CI) | type stripping runs raw TS |
 | pnpm | 12.9.1 (pinned via `packageManager`) | workspaces: `adapters/*`, `backend/tdm-napi` |
 | Bun | latest | runs the napi smoke test (`smoke:bun`) |
 
@@ -54,21 +54,37 @@ test on node and bun across windows/ubuntu/macos.
 5. **Keys never leave the auth plane**: `auth.toml` / `TDM_*_API_KEY` env are
    read by the backend only; adapters never see key material. Debug output
    must redact (see `TdmConfig`'s manual `Debug` impl for the pattern).
-6. Atomic, conventional-commit-style messages (`feat(scope):`, `fix(scope):`,
+6. **Lockfile discipline.** A lockfile change must land in the SAME commit as
+   its manifest change. Before committing `pnpm-lock.yaml` changes, run
+   `pnpm install --frozen-lockfile` to confirm the lockfile matches the
+   manifests.
+7. Atomic, conventional-commit-style messages (`feat(scope):`, `fix(scope):`,
    `chore:`, `test:`, `docs:`, `ci:`, `refactor:`).
 
 ## Repository layout
 
 See the README. In short: `backend/` is the cargo workspace (contract,
-providers, runtime, `tdmm` CLI, napi binding), `adapters/` is the pnpm
-workspace (generated contract package, client, per-harness plugins, MCP
-server), `docs/adr/` holds decision records, `docs/reviews/` holds milestone
-reviews.
+providers, runtime, `tdmm` CLI, conformance battery, napi binding), `adapters/`
+is the pnpm workspace (`tdm-contract` generated types + schemas, `tdm-client`,
+the `tdm-opencode` plugin, the unpublished `tdm-mcp` server), `docs/adr/` holds
+decision records, `docs/reviews/` holds milestone reviews.
 
 ## Decision records
 
 Non-trivial architectural choices get an ADR in `docs/adr/` (see ADR-0001…0005
 for the format: Status / Context / Decision / Consequences, a page at most).
+
+## Release process
+
+1. Bump the version in the affected `package.json` files (and the Rust crates
+   they mirror), and land the lockfile in the same commit (see convention 6).
+2. Tag the release: `git tag v<version>` and push the tag.
+3. `.github/workflows/release.yml` builds the 5-target napi matrix and runs
+   `pnpm publish` via **OIDC trusted publishing** — provenance is automatic
+   and no long-lived npm tokens are used.
+4. The first-ever publish of a package was seeded manually (trusted publishing
+   attaches to an existing package); every subsequent release is fully
+   automated.
 
 ## License
 

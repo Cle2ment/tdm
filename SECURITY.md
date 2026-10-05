@@ -2,21 +2,19 @@
 
 ## Supported versions
 
-TDM is pre-1.0. Only the latest commit on `main` receives fixes.
+TDM is pre-1.0. Only the latest commit on `main` receives fixes and is
+supported.
 
 | Version | Supported |
 | --- | --- |
 | `main` | ✅ |
-| anything tagged | ❌ (no releases yet) |
+| release tags (`v0.1.2`, …) | ❌ — snapshots; fixes land on `main` and ship in the next release |
 
 ## Reporting a vulnerability
 
-Please **do not** open a public issue for security reports.
-
-- Once the repository is public: use GitHub's private vulnerability reporting
-  (Security → Advisories → "Report a vulnerability").
-- While the repository is private: contact the owner directly via GitHub
-  ([@Cle2ment](https://github.com/Cle2ment)).
+Please **do not** open a public issue for security reports. Use GitHub's private
+vulnerability reporting (Security → Advisories → "Report a vulnerability"), or
+contact the owner directly via GitHub ([@Cle2ment](https://github.com/Cle2ment)).
 
 Please include: affected component (crate/package and version or commit), a
 reproduction or proof of concept, and the impact you see. Expect an
@@ -38,6 +36,14 @@ TDM handles API keys and records judgment requests. The areas that matter most:
 - **Error detail.** Provider error messages include truncated response bodies
   (bounded to ~500 chars). If an upstream provider can echo sensitive input
   back in an error body, that truncation boundary matters.
+
+## Release integrity
+
+npm publishing uses **OIDC trusted publishing** from GitHub Actions
+(`.github/workflows/release.yml`) with automatic SLSA provenance — no
+long-lived npm tokens or publish secrets are stored in the repository or CI.
+The first-ever publish of each package was seeded manually so trusted
+publishing could attach; all later releases are automated.
 
 Dependency vulnerabilities are tracked via CI; report anything you believe we
 have missed through the same channels above.
