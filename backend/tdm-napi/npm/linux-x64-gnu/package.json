@@ -1,0 +1,37 @@
+{
+  "name": "tdm-runtime-linux-x64-gnu",
+  "version": "0.1.0",
+  "cpu": [
+    "x64"
+  ],
+  "main": "tdm-runtime.linux-x64-gnu.node",
+  "files": [
+    "tdm-runtime.linux-x64-gnu.node"
+  ],
+  "description": "Native (napi-rs) TDM decision runtime: judge/health in-process for bun and node >= 22.6.",
+  "keywords": [
+    "tdm",
+    "decision",
+    "napi",
+    "opencode-plugin",
+    "ai-agent"
+  ],
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=22.6.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Cle2ment/tdm.git",
+    "directory": "backend/tdm-napi"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "os": [
+    "linux"
+  ],
+  "libc": [
+    "glibc"
+  ]
+}

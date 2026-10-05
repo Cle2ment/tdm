@@ -7,7 +7,7 @@ const runtime = vi.hoisted(() => ({
   health: vi.fn(),
 }));
 
-vi.mock("@typedecision/runtime", () => runtime);
+vi.mock("tdm-runtime", () => runtime);
 
 const REQUEST = {
   state: { path: "src/main.rs", action: "delete_file" },

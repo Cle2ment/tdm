@@ -5,7 +5,7 @@ import { NapiClient } from "../src/index";
 // factory only runs on import, so the counter doubles as a load probe.
 const state = vi.hoisted(() => ({ loadAttempts: 0 }));
 
-vi.mock("@typedecision/runtime", () => {
+vi.mock("tdm-runtime", () => {
   state.loadAttempts += 1;
   throw new Error("synthetic module load failure");
 });

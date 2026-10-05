@@ -1,0 +1,130 @@
+# Release pipeline for the npm `tdm-runtime` umbrella package and its five
+# per-platform binary packages (backend/tdm-napi/npm/<triple>/).
+#
+# - tag push `v*`: 5-target release build, then provenance-attested publish
+#   of each platform package followed by the umbrella.
+# - workflow_dispatch: matrix build only. Publish runs exclusively on a `v*`
+#   tag; the `dry_run` input makes that explicit and never publishes.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Validate the matrix build only — never publish"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-pc-windows-msvc
+            triple: win32-x64-msvc
+            os: windows-latest
+          - target: x86_64-unknown-linux-gnu
+            triple: linux-x64-gnu
+            os: ubuntu-latest
+          - target: aarch64-unknown-linux-gnu
+            triple: linux-arm64-gnu
+            os: ubuntu-24.04-arm
+          - target: x86_64-apple-darwin
+            triple: darwin-x64
+            os: macos-15
+          - target: aarch64-apple-darwin
+            triple: darwin-arm64
+            os: macos-14
+    runs-on: ${{ matrix.os }}
+    env:
+      # cargo only honors [profile.release] in the workspace root manifest, so
+      # the crate-local tuning is re-asserted here via profile env vars.
+      CARGO_PROFILE_RELEASE_LTO: "true"
+      CARGO_PROFILE_RELEASE_STRIP: "symbols"
+      CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build release binding
+        run: pnpm --filter tdm-runtime exec napi build --platform --release --no-js --target ${{ matrix.target }}
+      - name: Upload binding
+        uses: actions/upload-artifact@v4
+        with:
+          name: tdm-runtime-${{ matrix.triple }}
+          path: backend/tdm-napi/tdm-runtime.${{ matrix.triple }}.node
+          if-no-files-found: error
+
+  publish:
+    # Tags only. workflow_dispatch (dry_run or not) never publishes.
+    if: github.ref_type == 'tag' && startsWith(github.ref_name, 'v') && inputs.dry_run != true
+    needs: build
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      # OIDC for npm provenance attestation.
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          registry-url: https://registry.npmjs.org
+      - name: Download all bindings
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Tag must match package version
+        shell: bash
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          version="$(node -p "require('./backend/tdm-napi/package.json').version")"
+          if [ "$tag" != "$version" ]; then
+            echo "::error::tag v$tag does not match backend/tdm-napi package.json version $version"
+            exit 1
+          fi
+      - name: Place bindings into platform package dirs
+        shell: bash
+        run: |
+          set -euo pipefail
+          for binding in dist/tdm-runtime.*.node; do
+            triple="${binding#dist/tdm-runtime.}"
+            triple="${triple%.node}"
+            dir="backend/tdm-napi/npm/$triple"
+            test -d "$dir" || { echo "::error::no npm package dir for $triple"; exit 1; }
+            cp "$binding" "$dir/"
+          done
+          for dir in backend/tdm-napi/npm/*/; do
+            test -f "$dir"/tdm-runtime.*.node || { echo "::error::missing binding in $dir"; exit 1; }
+          done
+      - name: Publish platform packages, then the umbrella
+        shell: bash
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          for dir in backend/tdm-napi/npm/*/; do
+            echo "Publishing $(node -p "require('./$dir/package.json').name")"
+            (cd "$dir" && npm publish --provenance --access public)
+          done
+          echo "Publishing tdm-runtime (umbrella)"
+          (cd backend/tdm-napi && npm publish --provenance --access public)

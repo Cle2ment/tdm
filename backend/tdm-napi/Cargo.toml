@@ -5,7 +5,7 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
-description = "Native (napi-rs) binding for the TDM decision runtime: npm package @typedecision/runtime."
+description = "Native (napi-rs) binding for the TDM decision runtime: npm package tdm-runtime."
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -27,3 +27,11 @@ tokio = { version = "1", default-features = false, features = [
 
 [dev-dependencies]
 tempfile = "3"
+
+# Crate-local release tuning. Note: cargo only honors [profile.*] in the
+# workspace root manifest, so within the tdm workspace the release workflow
+# sets the same knobs through CARGO_PROFILE_RELEASE_* env vars (release.yml).
+[profile.release]
+lto = true
+strip = true
+codegen-units = 1

@@ -65,7 +65,7 @@ describe("tdm_judge via the MCP wire", () => {
     const { client, close } = await startServer({
       client: fakeClient({
         judge: async () => {
-          throw new Error('Failed to load the TDM native runtime from "@typedecision/runtime".');
+          throw new Error('Failed to load the TDM native runtime from "tdm-runtime".');
         },
       }),
     });

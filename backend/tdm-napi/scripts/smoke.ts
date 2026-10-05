@@ -1,5 +1,5 @@
 /**
- * Smoke test for @typedecision/runtime: loads the native binding and judges a
+ * Smoke test for tdm-runtime: loads the native binding and judges a
  * choice + noul + score batch through the deterministic mock provider (no
  * network, no API key). Run with node (`pnpm smoke`) or bun (`pnpm smoke:bun`).
  */

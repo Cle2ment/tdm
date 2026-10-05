@@ -1,10 +1,12 @@
 /**
- * @typedecision/runtime platform loader.
+ * tdm-runtime platform loader.
  *
- * Loads the prebuilt native binding (`tdm-runtime.<triple>.node`) matching the
- * current Node platform/arch. Without an napi publish pipeline (per-platform
- * packages), only local bindings produced by `napi build --platform` are
- * supported — see the error message below for how to build one.
+ * Resolves the native binding (`tdm-runtime.<triple>.node`) matching the
+ * current platform/arch, in order:
+ *   1. the published per-platform package `tdm-runtime-<triple>` (an
+ *      optionalDependency, present for npm consumers), then
+ *   2. a local binding beside this file, produced by
+ *      `napi build --platform` (repo development, `pnpm build:debug`).
  *
  * TypeScript source, executed directly by the host (bun, or node >= 22.6 type
  * stripping); `napi build --no-js` guarantees the CLI never clobbers this
@@ -32,16 +34,13 @@ export interface JudgeOptions {
 
 const BINARY_NAME = "tdm-runtime";
 
-/** Platform triples this package ships bindings for. */
+/** Platform triples this package ships bindings for (the release matrix). */
 const SUPPORTED_TARGETS = [
   "win32-x64-msvc",
-  "win32-arm64-msvc",
+  "linux-x64-gnu",
+  "linux-arm64-gnu",
   "darwin-x64",
   "darwin-arm64",
-  "linux-x64-gnu",
-  "linux-x64-musl",
-  "linux-arm64-gnu",
-  "linux-arm64-musl",
 ] as const;
 
 /**
@@ -87,21 +86,46 @@ function loadNativeBinding(): NativeBinding {
   const triple = platformTriple();
   if (triple === null) {
     throw new Error(
-      `@typedecision/runtime does not support ${process.platform}-${process.arch}. ` +
+      `tdm-runtime does not support ${process.platform}-${process.arch}. ` +
         `Supported targets: ${SUPPORTED_TARGETS.join(", ")}.`,
+    );
+  }
+  if (!(SUPPORTED_TARGETS as readonly string[]).includes(triple)) {
+    const hint = triple.endsWith("-musl")
+      ? ` Bindings are built against glibc only; musl targets (like ${triple}) are not shipped.`
+      : "";
+    throw new Error(
+      `tdm-runtime ships no native binding for ${triple}.` +
+        hint +
+        ` Supported targets: ${SUPPORTED_TARGETS.join(", ")}.`,
     );
   }
 
   const require = createRequire(import.meta.url);
+
+  // 1. Published consumers: the matching per-platform package is installed
+  //    automatically as an optionalDependency of tdm-runtime.
+  let requireError: unknown;
+  try {
+    return require(`tdm-runtime-${triple}`) as NativeBinding;
+  } catch (error) {
+    requireError = error; // Fall through to the local checkout binding.
+  }
+
+  // 2. Repo development: `pnpm --filter tdm-runtime build:debug` drops the
+  //    binding beside this file.
   const bindingPath = join(
     dirname(fileURLToPath(import.meta.url)),
     `${BINARY_NAME}.${triple}.node`,
   );
   if (!existsSync(bindingPath)) {
+    const cause = requireError instanceof Error ? requireError.message : String(requireError);
     throw new Error(
-      `Missing @typedecision/runtime native binding for ${triple} (expected ${bindingPath}). ` +
-        `Supported targets: ${SUPPORTED_TARGETS.join(", ")}. ` +
-        "Build it from a tdm checkout with `pnpm --filter @typedecision/runtime build`.",
+      `Missing tdm-runtime native binding for ${triple}. Tried:\n` +
+        `  1. npm package "tdm-runtime-${triple}" (installed with tdm-runtime): ${cause}\n` +
+        `  2. local file ${bindingPath} — build it from a tdm checkout with ` +
+        `\`pnpm --filter tdm-runtime build\`.\n` +
+        `Supported targets: ${SUPPORTED_TARGETS.join(", ")}.`,
     );
   }
 

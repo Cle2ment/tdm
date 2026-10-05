@@ -1,13 +1,24 @@
 {
-  "name": "@typedecision/runtime",
+  "name": "tdm-runtime",
   "version": "0.1.0",
-  "description": "Native (napi-rs) binding for the TDM decision runtime: judge/health in-process.",
+  "description": "Native (napi-rs) TDM decision runtime: judge/health in-process for bun and node >= 22.6.",
+  "keywords": [
+    "tdm",
+    "decision",
+    "napi",
+    "opencode-plugin",
+    "ai-agent"
+  ],
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "github.com/Cle2ment/tdm",
+    "url": "git+https://github.com/Cle2ment/tdm.git",
     "directory": "backend/tdm-napi"
   },
+  "engines": {
+    "node": ">=22.6.0"
+  },
+  "type": "module",
   "publishConfig": {
     "access": "public"
   },
@@ -15,10 +26,18 @@
   "types": "index.ts",
   "files": [
     "index.ts",
-    "*.node"
+    "README.md",
+    "LICENSE"
   ],
   "napi": {
-    "binaryName": "tdm-runtime"
+    "binaryName": "tdm-runtime",
+    "targets": [
+      "x86_64-pc-windows-msvc",
+      "x86_64-unknown-linux-gnu",
+      "aarch64-unknown-linux-gnu",
+      "x86_64-apple-darwin",
+      "aarch64-apple-darwin"
+    ]
   },
   "scripts": {
     "build": "napi build --platform --no-js --release",
@@ -29,6 +48,13 @@
   },
   "dependencies": {
     "@typedecision/contract": "workspace:*"
+  },
+  "optionalDependencies": {
+    "tdm-runtime-win32-x64-msvc": "0.1.0",
+    "tdm-runtime-linux-x64-gnu": "0.1.0",
+    "tdm-runtime-linux-arm64-gnu": "0.1.0",
+    "tdm-runtime-darwin-x64": "0.1.0",
+    "tdm-runtime-darwin-arm64": "0.1.0"
   },
   "devDependencies": {
     "@napi-rs/cli": "^3.10.6",

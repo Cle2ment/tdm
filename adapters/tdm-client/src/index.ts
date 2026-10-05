@@ -26,16 +26,16 @@ export interface TdmClient {
   health(): Promise<HealthReport>;
 }
 
-/** Shape of the `@typedecision/runtime` napi-rs binding module. */
+/** Shape of the `tdm-runtime` napi-rs binding module. */
 type NapiRuntime = {
   judge(req: DecisionRequest, opts?: JudgeOptions): Promise<DecisionResult>;
   health(): Promise<HealthReport>;
 };
 
-const DEFAULT_RUNTIME_MODULE = "@typedecision/runtime";
+const DEFAULT_RUNTIME_MODULE = "tdm-runtime";
 
 /**
- * Client backed by the in-process native binding (`@typedecision/runtime`,
+ * Client backed by the in-process native binding (`tdm-runtime`,
  * built by napi-rs from `backend/tdm-napi`).
  *
  * The native module is imported lazily on the first judge/health call — never
@@ -70,7 +70,7 @@ export class NapiClient implements TdmClient {
       mod = await import(this.runtimeModule);
     } catch (cause) {
       throw new Error(
-        `Failed to load the TDM native runtime from "${this.runtimeModule}". @typedecision/runtime is the native (napi-rs) binding package — install it with \`pnpm add @typedecision/runtime\`, or build it from a tdm checkout with \`cargo build -p tdm-napi --release\` (see backend/tdm-napi).`,
+        `Failed to load the TDM native runtime from "${this.runtimeModule}". tdm-runtime is the native (napi-rs) binding package — install it with \`pnpm add tdm-runtime\`, or build it from a tdm checkout with \`cargo build -p tdm-napi --release\` (see backend/tdm-napi).`,
         { cause },
       );
     }
@@ -78,7 +78,7 @@ export class NapiClient implements TdmClient {
     const runtime = resolveRuntime(mod);
     if (runtime === undefined) {
       throw new Error(
-        `Module "${this.runtimeModule}" was loaded but does not look like the @typedecision/runtime native binding (expected judge/health exports). Reinstall the package or rebuild it with \`cargo build -p tdm-napi --release\`.`,
+        `Module "${this.runtimeModule}" was loaded but does not look like the tdm-runtime native binding (expected judge/health exports). Reinstall the package or rebuild it with \`cargo build -p tdm-napi --release\`.`,
       );
     }
     this.#runtime = runtime;
