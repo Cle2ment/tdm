@@ -26,7 +26,7 @@ tdm/
 │   ├── tdm-runtime/              # Engine: registry, routing, cache, audit (later wave)
 │   ├── tdm-provider-*/           # jev / mock / startlux providers (later waves)
 │   ├── tdmm/                     # Management CLI, single binary (later wave)
-│   └── tdm-napi/                 # napi-rs binding → tdm-runtime (npm)
+│   └── tdm-napi/                 # napi-rs binding → @typedecision/runtime (npm)
 ├── adapters/                     # TypeScript workspace (pnpm)
 │   ├── tdm-contract/             # ts-rs generated types + JSON Schemas (committed)
 │   ├── tdm-client/               # TdmClient: NapiClient | RpcClient (later wave)

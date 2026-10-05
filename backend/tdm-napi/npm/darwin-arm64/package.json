@@ -1,5 +1,5 @@
 {
-  "name": "tdm-runtime-darwin-arm64",
+  "name": "@typedecision/runtime-darwin-arm64",
   "version": "0.1.0",
   "cpu": [
     "arm64"

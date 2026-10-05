@@ -1,5 +1,5 @@
 //! `tdm-napi` — native Node.js binding for the TDM decision runtime, published
-//! as the npm package `tdm-runtime`.
+//! as the npm package `@typedecision/runtime`.
 //!
 //! Exports (see `index.d.ts` for the shipped TypeScript surface):
 //!

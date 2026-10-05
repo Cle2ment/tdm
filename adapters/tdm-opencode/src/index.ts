@@ -10,7 +10,7 @@
  * returning `{ content }`. The host SDK (`@opencode/plugin`) is imported
  * type-only; `@typedecision/client` is bundled into this artifact and its
  * client is created lazily on first use, so plugin load stays side-effect
- * free. The client loads the native binding from `tdm-runtime` (the published
+ * free. The client loads the native binding from `@typedecision/runtime` (the published
  * runtime package) by module name at call time.
  *
  * M2 risk gate — automatic scoring of tool executions:
@@ -54,12 +54,12 @@ Answers are typed and probabilistic: every answer carries a confidence, and choi
 
 /**
  * Module specifier of the native binding the plugin loads at call time. The
- * published package depends on `tdm-runtime` (backend/tdm-napi), so the
- * client must load that name — not the workspace client's unpublished
- * `tdm-runtime` default. Constructing NapiClient directly (instead
+ * published package depends on `@typedecision/runtime` (backend/tdm-napi), so
+ * the client must load that name — not the workspace client's unpublished
+ * `@typedecision/runtime` default. Constructing NapiClient directly (instead
  * of `createClient`) is what pins the specifier.
  */
-const RUNTIME_MODULE = "tdm-runtime";
+const RUNTIME_MODULE = "@typedecision/runtime";
 
 /**
  * Client singleton, created on the first tool call — mirrors NapiClient's lazy

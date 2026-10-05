@@ -1,3 +1,3 @@
-# `tdm-runtime-darwin-arm64`
+# `@typedecision/runtime-darwin-arm64`
 
-This is the **aarch64-apple-darwin** binary for `tdm-runtime`
+This is the **aarch64-apple-darwin** binary for `@typedecision/runtime`

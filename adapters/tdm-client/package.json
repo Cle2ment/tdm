@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@typedecision/contract": "workspace:*",
-    "tdm-runtime": "workspace:*"
+    "@typedecision/runtime": "workspace:*"
   },
   "devDependencies": {
     "typescript": "latest",

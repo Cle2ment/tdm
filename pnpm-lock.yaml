@@ -175,7 +175,7 @@ importers:
       '@typedecision/contract':
         specifier: workspace:*
         version: link:../tdm-contract
-      tdm-runtime:
+      '@typedecision/runtime':
         specifier: workspace:*
         version: link:../../backend/tdm-napi
     devDependencies:
@@ -215,7 +215,7 @@ importers:
 
   adapters/tdm-opencode:
     dependencies:
-      tdm-runtime:
+      '@typedecision/runtime':
         specifier: workspace:*
         version: link:../../backend/tdm-napi
       zod:

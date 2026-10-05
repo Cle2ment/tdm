@@ -1,10 +1,16 @@
-# Release pipeline for the npm `tdm-runtime` umbrella package and its five
-# per-platform binary packages (backend/tdm-napi/npm/<triple>/), plus the
-# `opencode-tdm` plugin (adapters/tdm-opencode).
+# Release pipeline for the npm `@typedecision/runtime` umbrella package and its
+# five per-platform binary packages (backend/tdm-napi/npm/<triple>/), plus the
+# `@typedecision/opencode-tdm` plugin (adapters/tdm-opencode).
+#
+# Auth model: npm Trusted Publishing (OIDC) — no NODE_AUTH_TOKEN / NPM_TOKEN.
+# Each package's trusted publisher is configured on npmjs.com as
+# repo Cle2ment/tdm, workflow release.yml, environment npm. The first-ever
+# publish of each package must be done manually (a package must already exist
+# on the registry before a trusted publisher can be attached to it).
 #
 # - tag push `v*`: 5-target release build, then provenance-attested publish
 #   of each platform package followed by the umbrella, then the plugin
-#   (which depends on tdm-runtime, so it goes last).
+#   (which depends on @typedecision/runtime, so it goes last).
 # - workflow_dispatch: matrix build only. Publish runs exclusively on a `v*`
 #   tag; the `dry_run` input makes that explicit and never publishes.
 name: Release
@@ -67,7 +73,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Build release binding
-        run: pnpm --filter tdm-runtime exec napi build --platform --release --no-js --target ${{ matrix.target }}
+        run: pnpm --filter @typedecision/runtime exec napi build --platform --release --no-js --target ${{ matrix.target }}
       - name: Upload binding
         uses: actions/upload-artifact@v4
         with:
@@ -82,7 +88,9 @@ jobs:
     runs-on: ubuntu-latest
     environment: npm
     permissions:
-      # OIDC for npm provenance attestation.
+      # OIDC trusted publishing: npm exchanges this token for short-lived
+      # publish credentials. Provenance is attached automatically for public
+      # repos/packages — no --provenance flag, no npm_config_provenance.
       id-token: write
     steps:
       - uses: actions/checkout@v4
@@ -93,8 +101,11 @@ jobs:
         with:
           node-version: 26
           cache: pnpm
-          registry-url: https://registry.npmjs.org
       - run: pnpm install --frozen-lockfile
+      - name: Log npm CLI version
+        # Trusted publishing needs npm >= 11.5.1; node 26 bundles a
+        # new-enough npm. Logged for the record so regressions are visible.
+        run: npm --version
       - name: Download all bindings
         uses: actions/download-artifact@v4
         with:
@@ -130,28 +141,26 @@ jobs:
           done
       - name: Publish platform packages, then the umbrella
         shell: bash
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           set -euo pipefail
           for dir in backend/tdm-napi/npm/*/; do
             echo "Publishing $(node -p "require('./$dir/package.json').name")"
-            (cd "$dir" && npm publish --provenance --access public)
+            (cd "$dir" && pnpm publish --no-git-checks)
           done
-          echo "Publishing tdm-runtime (umbrella)"
-          (cd backend/tdm-napi && npm publish --provenance --access public)
+          echo "Publishing @typedecision/runtime (umbrella)"
+          (cd backend/tdm-napi && pnpm publish --no-git-checks)
 
   publish-plugin:
-    # Publishes the opencode-tdm plugin AFTER the umbrella (it depends on
-    # tdm-runtime). Its "tdm-runtime": "workspace:*" dependency requires
-    # `pnpm publish` (which rewrites workspace:*); npm publish must NOT be
-    # used for this package.
+    # Publishes the @typedecision/opencode-tdm plugin AFTER the umbrella (it
+    # depends on @typedecision/runtime). Its "@typedecision/runtime":
+    # "workspace:*" dependency requires `pnpm publish` (which rewrites
+    # workspace:* to the concrete version); npm publish must NOT be used.
     if: github.ref_type == 'tag' && startsWith(github.ref_name, 'v') && inputs.dry_run != true
     needs: publish
     runs-on: ubuntu-latest
     environment: npm
     permissions:
-      # OIDC for npm provenance attestation.
+      # OIDC trusted publishing (see the publish job above).
       id-token: write
     steps:
       - uses: actions/checkout@v4
@@ -160,12 +169,8 @@ jobs:
         with:
           node-version: 26
           cache: pnpm
-          registry-url: https://registry.npmjs.org
       - run: pnpm install --frozen-lockfile
       - name: Build plugin
-        run: pnpm --filter opencode-tdm build
-      - name: Publish opencode-tdm
-        run: pnpm --filter opencode-tdm publish --access public --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          npm_config_provenance: "true"
+        run: pnpm --filter @typedecision/opencode-tdm build
+      - name: Publish @typedecision/opencode-tdm
+        run: pnpm --filter @typedecision/opencode-tdm publish --no-git-checks

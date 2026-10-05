@@ -7,9 +7,9 @@ import { defineConfig } from "tsdown";
  *   (devDependencies: tiny, unpublished sources resolved from the workspace).
  * - `zod` and `@opencode/plugin` stay EXTERNAL so the plugin shares the host's
  *   single zod instance and SDK types (see the zod pin in package.json).
- * - `tdm-runtime` stays a real runtime dependency (the native napi binding);
- *   the bundled client loads it lazily via a dynamic import by module name,
- *   so there is nothing to inline or resolve at build time.
+ * - `@typedecision/runtime` stays a real runtime dependency (the native napi
+ *   binding); the bundled client loads it lazily via a dynamic import by
+ *   module name, so there is nothing to inline or resolve at build time.
  */
 export default defineConfig({
   entry: ["src/index.ts"],
@@ -25,5 +25,5 @@ export default defineConfig({
   // emits per-module via the TS API. It also requires typescript < 7 — the
   // package pins "^6" for exactly this reason.
   dts: { tsconfig: "./tsconfig.build.json", generator: "tsc", eager: true },
-  external: ["zod", "@opencode/plugin", "tdm-runtime"],
+  external: ["zod", "@opencode/plugin", "@typedecision/runtime"],
 });

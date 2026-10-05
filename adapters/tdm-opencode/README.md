@@ -1,4 +1,4 @@
-# opencode-tdm
+# @typedecision/opencode-tdm
 
 [TDM (Typed Decision Model)](https://github.com/Cle2ment/tdm) plugin for [opencode](https://opencode.ai) — gives your agent a `tdm_judge` tool for typed, auditable micro-decisions, plus an automatic risk gate that escalates risky tool calls to user confirmation.
 
@@ -8,7 +8,7 @@ Add the package to the `plugins` array in your `opencode.jsonc` (note: the key i
 
 ```jsonc
 {
-  "plugins": ["opencode-tdm@latest"]
+  "plugins": ["@typedecision/opencode-tdm@latest"]
 }
 ```
 
@@ -18,7 +18,7 @@ To pass options, use the object form:
 {
   "plugins": [
     {
-      "package": "opencode-tdm@latest",
+      "package": "@typedecision/opencode-tdm@latest",
       "options": {
         "confidenceFloor": 0.7
       }
@@ -42,7 +42,7 @@ The gate is strictly fail-open: judge outages or uncorrelated events never break
 ## Requirements
 
 - Node.js >= 22.6 or Bun.
-- The native runtime binding `tdm-runtime` is installed automatically as a dependency of this package.
+- The native runtime binding `@typedecision/runtime` is installed automatically as a dependency of this package.
 - A judge provider key: set `TYPESAFE_API_KEY` or `TDM_JEV_API_KEY` in the environment for real model-backed judgments.
 - **Without a key**, the runtime degrades to a deterministic **mock provider**: the tool and the risk gate keep working (schema, plumbing, escalation paths), but the answers are canned, not intelligent. Do not rely on mock-provider verdicts for safety decisions.
 

@@ -5,7 +5,7 @@ import { NapiClient } from "../src/index";
 // factory only runs on import, so the counter doubles as a load probe.
 const state = vi.hoisted(() => ({ loadAttempts: 0 }));
 
-vi.mock("tdm-runtime", () => {
+vi.mock("@typedecision/runtime", () => {
   state.loadAttempts += 1;
   throw new Error("synthetic module load failure");
 });
@@ -25,13 +25,13 @@ describe("NapiClient lazy loading", () => {
   it("rejects judge() with a helpful install/build message when the module cannot be loaded", async () => {
     const client = new NapiClient();
     await expect(client.judge(REQUEST)).rejects.toThrow(
-      /tdm-runtime is the native \(napi-rs\) binding package/,
+      /@typedecision\/runtime is the native \(napi-rs\) binding package/,
     );
     expect(state.loadAttempts).toBeGreaterThan(0);
   });
 
   it("rejects health() with the same guidance", async () => {
     const client = new NapiClient();
-    await expect(client.health()).rejects.toThrow(/pnpm add tdm-runtime/);
+    await expect(client.health()).rejects.toThrow(/pnpm add @typedecision\/runtime/);
   });
 });

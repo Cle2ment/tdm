@@ -1,5 +1,5 @@
 {
-  "name": "opencode-tdm",
+  "name": "@typedecision/opencode-tdm",
   "version": "0.1.0",
   "description": "TDM harness adapter for opencode: registers a tdm_judge tool for typed, auditable judgments and an automatic execute.before risk gate that escalates risky tool calls to user confirmation.",
   "keywords": [
@@ -42,7 +42,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "tdm-runtime": "workspace:*",
+    "@typedecision/runtime": "workspace:*",
     "zod": "4.1.8"
   },
   "peerDependencies": {

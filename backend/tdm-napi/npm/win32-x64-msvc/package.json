@@ -1,5 +1,5 @@
 {
-  "name": "tdm-runtime-win32-x64-msvc",
+  "name": "@typedecision/runtime-win32-x64-msvc",
   "version": "0.1.0",
   "cpu": [
     "x64"

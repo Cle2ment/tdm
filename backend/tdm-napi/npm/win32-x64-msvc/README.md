@@ -1,3 +1,3 @@
-# `tdm-runtime-win32-x64-msvc`
+# `@typedecision/runtime-win32-x64-msvc`
 
-This is the **x86_64-pc-windows-msvc** binary for `tdm-runtime`
+This is the **x86_64-pc-windows-msvc** binary for `@typedecision/runtime`
