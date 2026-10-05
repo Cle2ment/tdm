@@ -221,18 +221,33 @@ impl DecisionProvider for StaticErrorProvider {
 struct RestrictedCapsProvider {
     caps: Capabilities,
     inner: tdm_provider_mock::MockProvider,
+    calls: AtomicUsize,
 }
 
 impl RestrictedCapsProvider {
     fn noul_only() -> Self {
+        Self::with_caps(vec![PrimitiveKind::Noul], 1 << 20)
+    }
+
+    /// A provider whose `max_state_bytes` ceiling is `max_state_bytes`.
+    fn tiny_state(max_state_bytes: usize) -> Self {
+        Self::with_caps(vec![PrimitiveKind::Noul], max_state_bytes)
+    }
+
+    fn with_caps(primitives: Vec<PrimitiveKind>, max_state_bytes: usize) -> Self {
         Self {
             caps: Capabilities {
-                primitives: vec![PrimitiveKind::Noul],
+                primitives,
                 batch: true,
-                max_state_bytes: 1 << 20,
+                max_state_bytes,
             },
             inner: tdm_provider_mock::MockProvider::new(),
+            calls: AtomicUsize::new(0),
         }
+    }
+
+    fn calls(&self) -> usize {
+        self.calls.load(Ordering::SeqCst)
     }
 }
 
@@ -247,6 +262,7 @@ impl DecisionProvider for RestrictedCapsProvider {
     }
 
     async fn judge(&self, req: DecisionRequest) -> Result<DecisionResult, TdmError> {
+        self.calls.fetch_add(1, Ordering::SeqCst);
         self.inner.judge(req).await
     }
 
@@ -705,6 +721,64 @@ async fn unsupported_primitive_is_rejected_before_provider_call() {
     );
 }
 
+#[tokio::test]
+async fn oversized_state_is_client_413_without_provider_call() {
+    let dir = TempDir::new().unwrap();
+    let mut runtime = setup(&dir, |_config| {});
+    let tiny = Arc::new(RestrictedCapsProvider::tiny_state(8));
+    runtime.register_provider("tiny", Arc::clone(&tiny) as Arc<dyn DecisionProvider>);
+
+    let error = runtime
+        .judge(
+            SessionCtx::new("t", "s1"),
+            noul_request(serde_json::json!("this state is way more than eight bytes")),
+            Some("tiny"),
+        )
+        .await
+        .unwrap_err();
+
+    match error {
+        TdmError::Client {
+            status,
+            code,
+            message,
+        } => {
+            assert_eq!(status, 413);
+            assert_eq!(code.as_deref(), Some("state_too_large"));
+            assert!(
+                message.contains("bytes"),
+                "message carries sizes: {message}"
+            );
+        }
+        other => panic!("expected Client 413, got {other:?}"),
+    }
+    assert_eq!(tiny.calls(), 0, "rejected before any provider call");
+
+    // Pre-flight failures are audited like the others.
+    let rows = runtime.audit_recent(AuditFilter::default(), 10).unwrap();
+    assert_eq!(rows.len(), 1);
+    assert!(
+        rows[0]
+            .error
+            .as_deref()
+            .unwrap_or_default()
+            .contains("state_too_large")
+    );
+    assert!(rows[0].answers_json.is_none());
+
+    // A state within budget flows through untouched.
+    let judged = runtime
+        .judge(
+            SessionCtx::new("t", "s1"),
+            noul_request(serde_json::json!(1)),
+            Some("tiny"),
+        )
+        .await
+        .expect("small state passes the size gate");
+    assert!(!judged.from_cache);
+    assert_eq!(tiny.calls(), 1);
+}
+
 // ---------------------------------------------------------------------------
 // Cache
 // ---------------------------------------------------------------------------
@@ -843,6 +917,44 @@ async fn disabled_cache_never_hits() {
 
     assert!(!first.from_cache);
     assert!(!second.from_cache);
+    assert_eq!(counting.calls(), 2);
+}
+
+#[tokio::test]
+async fn cache_clear_forces_a_refetch() {
+    let dir = TempDir::new().unwrap();
+    let mut runtime = setup(&dir, |_config| {});
+    let counting = Arc::new(CountingProvider::new());
+    runtime.register_provider(
+        "counting",
+        Arc::clone(&counting) as Arc<dyn DecisionProvider>,
+    );
+
+    let request = noul_request(serde_json::json!(1));
+    let session = SessionCtx::new("t", "s1");
+    runtime
+        .judge(session.clone(), request.clone(), Some("counting"))
+        .await
+        .unwrap();
+    let hit = runtime
+        .judge(session.clone(), request.clone(), Some("counting"))
+        .await
+        .unwrap();
+    assert!(hit.from_cache);
+
+    // Scoped clear does not touch other providers; clear-all evicts.
+    assert_eq!(runtime.cache_clear(Some("nope")).unwrap(), 0);
+    assert_eq!(
+        runtime.cache_clear(Some("counting")).unwrap(),
+        1,
+        "the one cached row is removed"
+    );
+
+    let refetched = runtime
+        .judge(session, request, Some("counting"))
+        .await
+        .unwrap();
+    assert!(!refetched.from_cache, "cleared entry must be refetched");
     assert_eq!(counting.calls(), 2);
 }
 
@@ -1252,6 +1364,14 @@ async fn stats_aggregate_per_provider_and_harness() {
     assert_eq!(mock_t.cache_hits, 1);
     assert_eq!(mock_t.input_tokens, first.result.usage.input_tokens * 2);
     assert_eq!(mock_t.output_tokens, first.result.usage.output_tokens * 2);
+    assert_eq!(
+        mock_t.billable_input_tokens, first.result.usage.input_tokens,
+        "the cache-hit replay is excluded from billable"
+    );
+    assert_eq!(
+        mock_t.billable_output_tokens,
+        first.result.usage.output_tokens
+    );
     assert!(mock_t.avg_latency_ms >= 0.0);
 
     let nope_t = stats

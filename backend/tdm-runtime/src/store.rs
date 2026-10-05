@@ -39,7 +39,8 @@ CREATE TABLE IF NOT EXISTS cache (
     key TEXT PRIMARY KEY,
     provider TEXT NOT NULL,
     created_at INTEGER NOT NULL,
-    result_json TEXT NOT NULL
+    result_json TEXT NOT NULL,
+    model TEXT
 );
 ";
 
@@ -48,6 +49,15 @@ CREATE TABLE IF NOT EXISTS cache (
 /// JSON serialization of `{ state, questions }`. `serde_json` serializes
 /// maps as ordered `BTreeMap`s, so the digest is stable across JSON key
 /// orders.
+///
+/// Known limitation (M1 review SHOULD-FIX 2): the key covers the
+/// *config-time* model id (e.g. `"jev-latest"`). The model the provider
+/// actually answered with — `result.provider.model` (e.g. `"jev-1.13.0"`)
+/// — is only known after a call, so it cannot participate in the key. The
+/// wire model is stored in the cache table's `model` column for
+/// observability, but a silent upstream model upgrade does **not** invalidate
+/// old entries; the operational lever is [`Store::cache_clear`] (exposed as
+/// `tdmm cache clear`).
 #[must_use]
 pub fn cache_key(provider_id: &str, model: Option<&str>, request: &DecisionRequest) -> String {
     let body = CacheKeyBody {
@@ -141,10 +151,16 @@ pub struct StatsRow {
     pub calls: u64,
     /// How many of those were served from the cache.
     pub cache_hits: u64,
-    /// Sum of input tokens over all rows (cache hits included).
+    /// Sum of input tokens over all rows, cache hits included (each hit
+    /// replays the usage recorded by the original call).
     pub input_tokens: u64,
-    /// Sum of output tokens over all rows (cache hits included).
+    /// Sum of output tokens over all rows, cache hits included.
     pub output_tokens: u64,
+    /// Sum of input tokens over uncached rows only — the cost-bearing
+    /// figure: cache hits do not consume API tokens.
+    pub billable_input_tokens: u64,
+    /// Sum of output tokens over uncached rows only.
+    pub billable_output_tokens: u64,
     /// Mean end-to-end latency in milliseconds.
     pub avg_latency_ms: f64,
 }
@@ -187,9 +203,31 @@ impl Store {
 
     fn init(conn: Connection) -> Result<Self, RuntimeError> {
         conn.execute_batch(SCHEMA)?;
+        Self::migrate(&conn)?;
         Ok(Self {
             conn: Mutex::new(conn),
         })
+    }
+
+    /// Brings databases created by older versions up to the current schema.
+    ///
+    /// `CREATE TABLE IF NOT EXISTS` cannot alter tables that already exist,
+    /// so the cache table's `model` column (added in M2 to record the wire
+    /// model behind each entry) is detected via `PRAGMA table_info` and
+    /// appended with `ALTER TABLE` when missing. Pre-M2 `audit.db` files keep
+    /// working; the migration is idempotent and never touches row data.
+    ///
+    /// # Errors
+    /// [`RuntimeError::Db`] on SQLite failure.
+    fn migrate(conn: &Connection) -> Result<(), RuntimeError> {
+        let has_model = conn
+            .prepare("PRAGMA table_info(cache)")?
+            .query_map([], |row| row.get::<_, String>(1))?
+            .any(|name| name.as_deref() == Ok("model"));
+        if !has_model {
+            conn.execute("ALTER TABLE cache ADD COLUMN model TEXT", [])?;
+        }
+        Ok(())
     }
 
     /// Returns the cached result for `key` when it exists and is younger than
@@ -228,7 +266,8 @@ impl Store {
         Ok(Some(result))
     }
 
-    /// Upserts `result` under `key`.
+    /// Upserts `result` under `key`, recording the wire model that produced
+    /// it (`result.provider.model`) for observability.
     ///
     /// # Errors
     /// [`RuntimeError`]: serialization or SQLite failure.
@@ -240,18 +279,42 @@ impl Store {
         result: &DecisionResult,
     ) -> Result<(), RuntimeError> {
         let json = serde_json::to_string(result)?;
+        let wire_model = result.provider.model.as_deref();
         let conn = self
             .conn
             .lock()
             .expect("cache db mutex must not be poisoned");
         conn.execute(
-            "INSERT INTO cache (key, provider, created_at, result_json)
-             VALUES (?1, ?2, ?3, ?4)
+            "INSERT INTO cache (key, provider, created_at, result_json, model)
+             VALUES (?1, ?2, ?3, ?4, ?5)
              ON CONFLICT(key) DO UPDATE SET
-                provider = ?2, created_at = ?3, result_json = ?4",
-            params![key, provider, now_secs, json],
+                provider = ?2, created_at = ?3, result_json = ?4, model = ?5",
+            params![key, provider, now_secs, json, wire_model],
         )?;
         Ok(())
+    }
+
+    /// Deletes cache rows — every row when `provider` is `None`, else only
+    /// that provider's rows — returning how many rows were removed.
+    ///
+    /// This is the operational lever for the cache-key limitation documented
+    /// on [`cache_key`]: a silent upstream model upgrade does not invalidate
+    /// old entries, so eviction is deliberate (`tdmm cache clear`).
+    ///
+    /// # Errors
+    /// [`RuntimeError::Db`] on SQLite failure.
+    pub(crate) fn cache_clear(&self, provider: Option<&str>) -> Result<u64, RuntimeError> {
+        let conn = self
+            .conn
+            .lock()
+            .expect("cache db mutex must not be poisoned");
+        let removed = match provider {
+            Some(provider) => {
+                conn.execute("DELETE FROM cache WHERE provider = ?1", params![provider])?
+            }
+            None => conn.execute("DELETE FROM cache", [])?,
+        };
+        Ok(u64::try_from(removed).unwrap_or(u64::MAX))
     }
 
     /// Appends one audit row with `ts` as its unix-second timestamp.
@@ -354,6 +417,8 @@ impl Store {
         let mut stmt = conn.prepare(
             "SELECT provider, harness, COUNT(*), COALESCE(SUM(cached), 0),
                     COALESCE(SUM(input_tokens), 0), COALESCE(SUM(output_tokens), 0),
+                    COALESCE(SUM(CASE WHEN cached = 0 THEN input_tokens ELSE 0 END), 0),
+                    COALESCE(SUM(CASE WHEN cached = 0 THEN output_tokens ELSE 0 END), 0),
                     COALESCE(AVG(latency_ms), 0.0)
              FROM audit
              GROUP BY provider, harness
@@ -367,7 +432,9 @@ impl Store {
                 cache_hits: row.get::<_, i64>(3)?.max(0) as u64,
                 input_tokens: row.get::<_, i64>(4)?.max(0) as u64,
                 output_tokens: row.get::<_, i64>(5)?.max(0) as u64,
-                avg_latency_ms: row.get(6)?,
+                billable_input_tokens: row.get::<_, i64>(6)?.max(0) as u64,
+                billable_output_tokens: row.get::<_, i64>(7)?.max(0) as u64,
+                avg_latency_ms: row.get(8)?,
             })
         })?;
         rows.collect::<Result<Vec<_>, _>>()
@@ -448,5 +515,200 @@ mod tests {
         assert!(store.cache_get(&key, 10, 200).expect("get").is_none());
         store.cache_put(&key, "mock", 100, &result).expect("re-put");
         assert!(store.cache_get(&key, 10, 201).expect("get").is_none());
+    }
+
+    /// A hand-built audit row for stats seeding.
+    fn audit_row<'a>(
+        harness: &'a str,
+        provider: &'a str,
+        cached: bool,
+        input_tokens: u64,
+        output_tokens: u64,
+    ) -> AuditInsert<'a> {
+        AuditInsert {
+            harness,
+            session_id: "s1",
+            provider,
+            model: None,
+            request_hash: "h",
+            request_json: "{}",
+            answers_json: None,
+            error: None,
+            latency_ms: 10,
+            input_tokens,
+            output_tokens,
+            cached,
+        }
+    }
+
+    #[test]
+    fn stats_billable_tokens_exclude_cache_hits() {
+        let store = Store::open_in_memory().expect("opens");
+        store
+            .audit_insert(audit_row("t", "mock", false, 10, 5), 100)
+            .expect("insert");
+        store
+            .audit_insert(audit_row("t", "mock", true, 10, 5), 101)
+            .expect("insert");
+        store
+            .audit_insert(audit_row("t", "mock", false, 7, 2), 102)
+            .expect("insert");
+        store
+            .audit_insert(audit_row("t", "jev", true, 50, 25), 103)
+            .expect("insert");
+
+        let stats = store.stats().expect("stats");
+        let mock = stats.iter().find(|s| s.provider == "mock").unwrap();
+        assert_eq!(mock.calls, 3);
+        assert_eq!(mock.cache_hits, 1);
+        assert_eq!(mock.input_tokens, 27, "totals include the cached replay");
+        assert_eq!(mock.output_tokens, 12);
+        assert_eq!(mock.billable_input_tokens, 17, "billable excludes the hit");
+        assert_eq!(mock.billable_output_tokens, 7);
+
+        let jev = stats.iter().find(|s| s.provider == "jev").unwrap();
+        assert_eq!(jev.input_tokens, 50);
+        assert_eq!(
+            jev.billable_input_tokens, 0,
+            "all-hit groups are not billable"
+        );
+        assert_eq!(jev.billable_output_tokens, 0);
+    }
+
+    #[test]
+    fn cache_clear_scopes_by_provider_and_counts_rows() {
+        let store = Store::open_in_memory().expect("opens");
+        let result_for = |id: &str| DecisionResult {
+            answers: vec![],
+            usage: tdm_core::Usage {
+                input_tokens: 1,
+                output_tokens: 1,
+            },
+            provider: tdm_core::ProviderMeta {
+                id: id.to_owned(),
+                model: Some("m".to_owned()),
+            },
+            latency_ms: 1,
+        };
+        let key_a = cache_key(
+            "mock",
+            Some("m"),
+            &noul_request(serde_json::json!({"a": 1})),
+        );
+        let key_b = cache_key(
+            "mock",
+            Some("m"),
+            &noul_request(serde_json::json!({"a": 2})),
+        );
+        let key_c = cache_key("jev", Some("m"), &noul_request(serde_json::json!({"a": 1})));
+        store
+            .cache_put(&key_a, "mock", 100, &result_for("mock"))
+            .expect("put");
+        store
+            .cache_put(&key_b, "mock", 100, &result_for("mock"))
+            .expect("put");
+        store
+            .cache_put(&key_c, "jev", 100, &result_for("jev"))
+            .expect("put");
+
+        assert_eq!(
+            store.cache_clear(Some("mock")).expect("clear"),
+            2,
+            "only the mock rows are removed"
+        );
+        assert!(store.cache_get(&key_a, 3600, 150).expect("get").is_none());
+        assert!(store.cache_get(&key_b, 3600, 150).expect("get").is_none());
+        assert!(
+            store.cache_get(&key_c, 3600, 150).expect("get").is_some(),
+            "other providers' rows survive a scoped clear"
+        );
+
+        assert_eq!(
+            store.cache_clear(None).expect("clear"),
+            1,
+            "clear-all counts what is left"
+        );
+        assert_eq!(store.cache_clear(None).expect("clear"), 0, "idempotent");
+    }
+
+    #[test]
+    fn migration_adds_model_column_to_pre_m2_cache_databases() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("audit.db");
+        let legacy_result = DecisionResult {
+            answers: vec![],
+            usage: tdm_core::Usage {
+                input_tokens: 3,
+                output_tokens: 1,
+            },
+            provider: tdm_core::ProviderMeta {
+                id: "mock".to_owned(),
+                model: Some("mock-1".to_owned()),
+            },
+            latency_ms: 4,
+        };
+
+        // Simulate a pre-M2 database: a cache table without the model column.
+        {
+            let conn = Connection::open(&path).unwrap();
+            conn.execute_batch(
+                "CREATE TABLE cache (
+                     key TEXT PRIMARY KEY,
+                     provider TEXT NOT NULL,
+                     created_at INTEGER NOT NULL,
+                     result_json TEXT NOT NULL
+                 );",
+            )
+            .unwrap();
+            conn.execute(
+                "INSERT INTO cache (key, provider, created_at, result_json)
+                 VALUES (?1, ?2, ?3, ?4)",
+                params![
+                    "legacy",
+                    "mock",
+                    100,
+                    serde_json::to_string(&legacy_result).unwrap()
+                ],
+            )
+            .unwrap();
+        }
+
+        let store = Store::open(&path).expect("a pre-M2 database opens and migrates");
+
+        // Seeded rows survive the migration and still read back.
+        let hit = store.cache_get("legacy", 3600, 150).expect("get");
+        assert_eq!(hit, Some(legacy_result.clone()));
+
+        // cache_put writes the model column — proof the migration added it
+        // (the INSERT would fail with "no such column" otherwise).
+        let key = cache_key(
+            "mock",
+            Some("mock-1"),
+            &noul_request(serde_json::json!({"a": 1})),
+        );
+        store
+            .cache_put(&key, "mock", 100, &legacy_result)
+            .expect("put into the migrated table");
+
+        // The wire model is observable in the row.
+        let conn = Connection::open(&path).unwrap();
+        let stored_model: Option<String> = conn
+            .query_row(
+                "SELECT model FROM cache WHERE key = ?1",
+                params![key],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            stored_model.as_deref(),
+            Some("mock-1"),
+            "wire model recorded at put time"
+        );
+
+        // Reopening an already-migrated database is idempotent.
+        drop(conn);
+        drop(store);
+        let reopened = Store::open(&path).expect("reopen after migration");
+        assert!(reopened.cache_get(&key, 3600, 150).expect("get").is_some());
     }
 }

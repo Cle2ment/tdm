@@ -13,7 +13,9 @@
 //!   `[defaults].provider`; an unregistered name is a `TdmError::Client`
 //!   (code `unknown_provider`).
 //! - **capability check** — every requested primitive must appear in the
-//!   routed provider's capabilities, else `TdmError::Unsupported`.
+//!   routed provider's capabilities, else `TdmError::Unsupported`; the
+//!   serialized `state` must fit the provider's `max_state_bytes`, else
+//!   `TdmError::Client { 413, "state_too_large" }`.
 //! - **exact-hash cache** — a SQLite table keyed by [`cache_key`] (provider,
 //!   model, canonical request JSON); fresh hits are served without touching
 //!   the provider (still audited, `cached = 1`).
@@ -228,9 +230,9 @@ impl Runtime {
     /// Judges one batch of questions.
     ///
     /// Routing: `provider_override` when given, else `[defaults].provider`.
-    /// The full pipeline is capability check → cache → circuit breaker →
-    /// retry loop → audit, and every call path (success, cache hit, or final
-    /// failure) appends an audit row.
+    /// The full pipeline is capability check → state-size check → cache →
+    /// circuit breaker → retry loop → audit, and every call path (success,
+    /// cache hit, or final failure) appends an audit row.
     ///
     /// # Errors
     /// [`TdmError`] per the retry / escalation taxonomy, including
@@ -284,6 +286,33 @@ impl Runtime {
                 });
                 return Err(error);
             }
+        }
+
+        // State-size negotiation: the routed provider's max_state_bytes caps
+        // the serialized state; oversized requests are rejected pre-flight
+        // (never reach the provider, still audited).
+        let state_bytes = serde_json::to_vec(&req.state).unwrap_or_default();
+        let max_state_bytes = entry.provider.capabilities().max_state_bytes;
+        if state_bytes.len() > max_state_bytes {
+            let error = TdmError::Client {
+                status: 413,
+                code: Some("state_too_large".to_owned()),
+                message: format!(
+                    "state is {} bytes but provider {name:?} accepts at most \
+                     {max_state_bytes} bytes (max_state_bytes)",
+                    state_bytes.len()
+                ),
+            };
+            self.audit_failure(AuditContext {
+                session: &session,
+                provider: &name,
+                model: entry.model.as_deref(),
+                request_hash: &cache_key(&name, entry.model.as_deref(), &req),
+                request_json: &request_json,
+                error: &error.to_string(),
+                started,
+            });
+            return Err(error);
         }
 
         let request_hash = cache_key(&name, entry.model.as_deref(), &req);
@@ -436,6 +465,22 @@ impl Runtime {
     /// [`RuntimeError::Db`] on SQLite failure.
     pub fn stats(&self) -> Result<Vec<StatsRow>, RuntimeError> {
         self.store.stats()
+    }
+
+    /// Deletes response-cache rows — every row when `provider` is `None`,
+    /// else only that provider's rows — returning how many rows were
+    /// removed.
+    ///
+    /// The operational lever for the cache-key limitation documented on
+    /// [`cache_key`]: the key covers the config-time model id only, so a
+    /// silent upstream model upgrade does not invalidate old entries. Clear
+    /// the cache to force a full refetch.
+    ///
+    /// # Errors
+    /// [`RuntimeError::Db`] on SQLite failure — unlike the cache read/write
+    /// paths inside `judge`, this query API surfaces storage errors.
+    pub fn cache_clear(&self, provider: Option<&str>) -> Result<u64, RuntimeError> {
+        self.store.cache_clear(provider)
     }
 
     /// Appends a failure audit row; storage errors are logged, not raised.

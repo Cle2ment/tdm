@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use clap::{Parser, Subcommand, ValueEnum};
 
 /// `tdmm` — TDM management CLI (full M1 surface: `init`, `call`, `use`,
-/// `keys`, `doctor`, `logs`, `stats`, `config`).
+/// `keys`, `doctor`, `logs`, `stats`, `cache`, `config`).
 #[derive(Debug, Parser)]
 #[command(
     name = "tdmm",
@@ -100,6 +100,11 @@ pub enum Command {
         #[arg(long)]
         json: bool,
     },
+    /// Manage the exact-hash response cache.
+    Cache {
+        #[command(subcommand)]
+        command: CacheCommand,
+    },
     /// Locate or validate the tdm config files.
     Config {
         #[command(subcommand)]
@@ -137,6 +142,22 @@ pub enum ConfigCommand {
     Path,
     /// Parse config.toml and auth.toml and report errors.
     Validate,
+}
+
+/// `tdmm cache` subcommands.
+#[derive(Debug, Subcommand)]
+pub enum CacheCommand {
+    /// Evict cached results (all of them, or one provider's rows) and print
+    /// how many rows were removed.
+    ///
+    /// The cache key covers the config-time model only, so a silent upstream
+    /// model upgrade does not invalidate old entries — `cache clear` is the
+    /// deliberate eviction lever.
+    Clear {
+        /// Only evict rows for this provider (registry name).
+        #[arg(long)]
+        provider: Option<String>,
+    },
 }
 
 /// Explicit provider selection for `tdmm call`.

@@ -6,12 +6,13 @@
 //! switch, comments preserved), [`keys`] (auth.toml management; key values
 //! only ever displayed redacted), [`doctor`] (config / key / provider
 //! health / audit-db diagnostics), [`logs`] + [`stats`] (audit queries),
-//! and [`config_cmd`] (path + validate). `serve` (JSON-RPC daemon) is a
-//! later milestone.
+//! [`cache`] (response-cache eviction), and [`config_cmd`] (path + validate).
+//! `serve` (JSON-RPC daemon) is a later milestone.
 //!
 //! Error output goes to stderr, results to stdout only (pipe-friendly). API
 //! keys are consumed but never printed.
 
+pub mod cache;
 pub mod call;
 pub mod cli;
 pub mod config;
@@ -57,6 +58,7 @@ pub async fn run() -> u8 {
             json,
         } => logs::run(session, harness, provider, limit, json),
         Command::Stats { json } => stats::run(json),
+        Command::Cache { command } => cache::run(command),
         Command::Config { command } => config_cmd::run(command),
     }
 }

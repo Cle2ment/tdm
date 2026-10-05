@@ -226,6 +226,29 @@ fn parses_new_m1_subcommands() {
 }
 
 #[test]
+fn parses_cache_clear_shapes() {
+    let cli = Cli::try_parse_from(["tdmm", "cache", "clear"]).unwrap();
+    let Subcommand::Cache { command } = cli.command else {
+        panic!("expected cache subcommand");
+    };
+    let tdmm::cli::CacheCommand::Clear { provider } = command;
+    assert_eq!(provider, None, "bare clear = all providers");
+
+    let cli = Cli::try_parse_from(["tdmm", "cache", "clear", "--provider", "mock"]).unwrap();
+    let Subcommand::Cache {
+        command: tdmm::cli::CacheCommand::Clear { provider },
+    } = cli.command
+    else {
+        panic!("expected cache clear subcommand");
+    };
+    assert_eq!(provider.as_deref(), Some("mock"));
+
+    // Bare `cache` and unknown cache subcommands are rejected.
+    assert!(Cli::try_parse_from(["tdmm", "cache"]).is_err());
+    assert!(Cli::try_parse_from(["tdmm", "cache", "list"]).is_err());
+}
+
+#[test]
 fn rejects_invalid_cli_shapes() {
     // No subcommand.
     assert!(Cli::try_parse_from(["tdmm"]).is_err());
@@ -514,6 +537,58 @@ fn call_through_runtime_caches_identical_results() {
     assert_eq!(rows[0]["cached"], true, "second call was a cache hit");
     assert_eq!(rows[1]["cached"], false, "first call was a miss");
     assert_eq!(rows[0]["provider"], "mock");
+}
+
+#[test]
+fn cache_clear_evicts_and_proves_refetch() {
+    let dir = isolated_dir();
+    // Seed: two identical calls -> one miss + one hit -> one cache row.
+    for _ in 0..2 {
+        tdmm_in(dir.path())
+            .arg("call")
+            .write_stdin(VALID_REQUEST)
+            .assert()
+            .success();
+    }
+
+    // Scoped clear that matches nothing.
+    let assert = tdmm_in(dir.path())
+        .args(["cache", "clear", "--provider", "nope"])
+        .assert()
+        .success();
+    assert!(stdout_text(&assert).contains("0"), "no rows matched nope");
+
+    // Clear-all prints the removed count.
+    let assert = tdmm_in(dir.path())
+        .args(["cache", "clear"])
+        .assert()
+        .success();
+    let stdout = stdout_text(&assert);
+    assert!(
+        stdout.contains("1"),
+        "exactly one cached row existed: {stdout}"
+    );
+    assert!(stdout.contains("removed"));
+
+    // A third identical call is a miss again: eviction really happened.
+    tdmm_in(dir.path())
+        .arg("call")
+        .write_stdin(VALID_REQUEST)
+        .assert()
+        .success();
+    let assert = tdmm_in(dir.path())
+        .args(["logs", "--json"])
+        .assert()
+        .success();
+    let rows: Vec<serde_json::Value> =
+        serde_json::from_str(&stdout_text(&assert)).expect("logs --json array");
+    assert_eq!(rows.len(), 3, "three audited calls");
+    assert_eq!(
+        rows.iter().filter(|row| row["cached"] == true).count(),
+        1,
+        "only the second call was a cache hit"
+    );
+    assert_eq!(rows[0]["cached"], false, "post-clear call refetched");
 }
 
 // ---------------------------------------------------------------------------
@@ -856,6 +931,17 @@ fn logs_and_stats_reflect_call_history() {
         stats[0]["cacheHits"].as_u64().unwrap() >= 1,
         "cache_hits >= 1"
     );
+    // Billable tokens exclude the cache hit; totals include it.
+    let billable = stats[0]["billableInputTokens"].as_u64().unwrap();
+    let total = stats[0]["inputTokens"].as_u64().unwrap();
+    assert!(
+        billable < total,
+        "billable ({billable}) must exclude the hit that totals ({total}) include"
+    );
+    assert!(
+        stats[0]["billableOutputTokens"].as_u64().unwrap()
+            < stats[0]["outputTokens"].as_u64().unwrap()
+    );
 
     // stats table form.
     let assert = tdmm_in(dir.path()).arg("stats").assert().success();
@@ -865,6 +951,8 @@ fn logs_and_stats_reflect_call_history() {
         "harness",
         "calls",
         "cache_hits",
+        "billable_in",
+        "total_in",
         "avg_latency_ms",
     ] {
         assert!(stdout.contains(column), "stats table header has {column}");
